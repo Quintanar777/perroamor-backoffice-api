@@ -26,7 +26,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             JwtAuthenticationConverter jwtAuthenticationConverter,
-            ProblemDetailAuthenticationEntryPoint entryPoint) throws Exception {
+            ProblemDetailAuthenticationEntryPoint entryPoint,
+            ProblemDetailAccessDeniedHandler accessDeniedHandler) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
@@ -51,8 +52,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
-                        .authenticationEntryPoint(entryPoint))
-                .exceptionHandling(ex -> ex.authenticationEntryPoint(entryPoint));
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(entryPoint)
+                        .accessDeniedHandler(accessDeniedHandler));
 
         return http.build();
     }

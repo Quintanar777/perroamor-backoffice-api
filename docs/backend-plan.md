@@ -281,11 +281,11 @@ Variants:
 6. Pagination con `Pageable` de Spring Data.
 
 **Done cuando**:
-- [ ] CRUD completo de brands, products, variants funciona vía Swagger UI.
-- [ ] Filtros de productos (`brandId`, `category`, `q`) andan.
-- [ ] Validaciones devuelven `ProblemDetail` claros.
-- [ ] Productos seedeados aparecen al hacer GET sin filtros.
-- [ ] Commit: `feat(catalog): brands, products and variants management`.
+- [x] CRUD completo de brands, products, variants funciona vía Swagger UI.
+- [x] Filtros de productos (`brandId`, `category`, `q`) andan.
+- [x] Validaciones devuelven `ProblemDetail` claros.
+- [x] Productos seedeados aparecen al hacer GET sin filtros.
+- [x] Commit: `feat(catalog): brands, products and variants management`.
 
 ---
 
@@ -517,7 +517,7 @@ Cuando todas estas estén ✅, el MVP está terminado:
 - [x] Fase 0: bootstrap
 - [x] Fase 1: cross-cutting
 - [x] Fase 2: auth con JWT
-- [ ] Fase 3: catálogo (brands, products, variants)
+- [x] Fase 3: catálogo (brands, products, variants)
 - [ ] Fase 4: events
 - [ ] Fase 5: sales (POS)
 - [ ] Fase 6: hardening
