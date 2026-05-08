@@ -416,10 +416,10 @@ Esta fase es la más delicada. Ojo con la consistencia.
 8. **README expandido**: cómo correr local, cómo hacer deploy, lista de endpoints.
 
 **Done cuando**:
-- [ ] Listados paginados devuelven shape `PagedResponse<T>`.
-- [ ] App levanta con perfil `prod` cuando se le pasan env vars.
-- [ ] Imagen Docker arranca y responde health.
-- [ ] Commit: `feat: hardening (pagination, auditing, prod config)`.
+- [x] Listados paginados devuelven shape `PagedResponse<T>`.
+- [x] App levanta con perfil `prod` cuando se le pasan env vars.
+- [x] Imagen Docker arranca y responde health.
+- [x] Commit: `feat: hardening (pagination, auditing, prod config)`.
 
 ---
 
@@ -520,7 +520,7 @@ Cuando todas estas estén ✅, el MVP está terminado:
 - [x] Fase 3: catálogo (brands, products, variants)
 - [x] Fase 4: events
 - [x] Fase 5: sales (POS)
-- [ ] Fase 6: hardening
+- [x] Fase 6: hardening
 - [ ] (opcional) Fase 7: tests
 - [ ] (cuando el usuario quiera) Fase 8: deployment
 

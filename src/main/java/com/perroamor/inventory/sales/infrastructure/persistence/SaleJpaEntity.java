@@ -5,6 +5,7 @@ import com.perroamor.inventory.events.infrastructure.persistence.EventJpaEntity;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -17,6 +18,8 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import com.perroamor.inventory.sales.domain.PaymentMethod;
 
 import java.math.BigDecimal;
@@ -26,6 +29,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "sales")
+@EntityListeners(AuditingEntityListener.class)
 public class SaleJpaEntity {
 
     @Id
@@ -77,6 +81,7 @@ public class SaleJpaEntity {
     @Column(name = "cancelled_at")
     private LocalDateTime cancelledAt;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -86,9 +91,7 @@ public class SaleJpaEntity {
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        if (saleDate == null)  saleDate = now;
+        if (saleDate == null) saleDate = LocalDateTime.now();
     }
 
     public void addItem(SaleItemJpaEntity item) {

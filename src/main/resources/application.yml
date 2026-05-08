@@ -53,6 +53,22 @@ management:
   endpoint:
     health:
       show-details: when-authorized
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: true
+    diskspace:
+      enabled: true
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Backend del sistema de inventario y POS de Perro Amor
+    version: 0.0.1-SNAPSHOT
 
 logging:
   pattern:

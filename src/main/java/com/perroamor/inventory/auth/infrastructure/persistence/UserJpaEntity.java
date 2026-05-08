@@ -2,19 +2,22 @@ package com.perroamor.inventory.auth.infrastructure.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
+@EntityListeners(AuditingEntityListener.class)
 public class UserJpaEntity {
 
     @Id
@@ -40,16 +43,12 @@ public class UserJpaEntity {
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
-    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

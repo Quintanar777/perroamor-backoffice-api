@@ -2,16 +2,19 @@ package com.perroamor.inventory.catalog.infrastructure.persistence;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "brands")
+@EntityListeners(AuditingEntityListener.class)
 public class BrandJpaEntity {
 
     @Id
@@ -27,13 +30,9 @@ public class BrandJpaEntity {
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
+    @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
-
-    @PrePersist
-    void onCreate() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
-    }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

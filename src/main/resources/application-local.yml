@@ -19,6 +19,11 @@ app:
     access-ttl-minutes: 15
     refresh-ttl-days: 7
 
+management:
+  endpoint:
+    health:
+      show-details: always
+
 logging:
   level:
     com.perroamor: DEBUG
