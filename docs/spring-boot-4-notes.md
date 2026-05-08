@@ -165,6 +165,40 @@ El header le dice al encoder qué algoritmo usar y matchea la `OctetSequenceKey`
 
 ---
 
+## 11. Postgres + JPQL `IS NULL OR ...` revienta con `function lower(bytea) does not exist`
+
+**Qué cambió**: nada (es un gotcha histórico de PostgreSQL JDBC), pero apareció apenas armamos la primera query dinámica.
+
+**Por qué importa**: si escribís una `@Query` con el patrón clásico para filtros opcionales:
+
+```java
+@Query("""
+        SELECT p FROM ProductJpaEntity p
+        WHERE (:category IS NULL OR LOWER(p.category) = LOWER(:category))
+          AND (:query    IS NULL OR LOWER(p.name)     LIKE LOWER(CONCAT('%', :query, '%')))
+        """)
+```
+
+…y la llamás con TODOS los parámetros en `null`, JDBC los manda al driver Postgres sin tipo. Postgres infiere `bytea` (default cuando no hay tipo), y `LOWER(bytea)` no existe → error SQL `42883`.
+
+**Cómo lo manejamos**: cambiamos a **Spring Data Specifications**. La query se construye dinámicamente con CriteriaBuilder y solo agrega los predicados que tienen valor. No hay `IS NULL OR` ni `NULL` enviados al SQL.
+
+```java
+public interface ProductJpaRepository extends
+        JpaRepository<ProductJpaEntity, Long>,
+        JpaSpecificationExecutor<ProductJpaEntity> {
+}
+
+// y un Specification estático con cb.equal / cb.like según corresponda.
+```
+
+**Alternativas** (las descartamos por menos limpias):
+- `setParameter(..., type)` con tipo explícito en EntityManager.
+- Cast en JPQL: `LOWER(CAST(:category AS string))` — funciona en algunos casos pero no en todos.
+- Native query con `LOWER(:category::text)` — feo, rompe portabilidad.
+
+---
+
 ## Tabla resumen — para repasar antes de dormir
 
 | Tema | Trampa | Solución de 1 línea |
@@ -179,3 +213,4 @@ El header le dice al encoder qué algoritmo usar y matchea la `OctetSequenceKey`
 | CORS preflight | No emite `Allow-Origin` en 404 | Probar contra endpoint real |
 | Hibernate APIs | Deprecated removidas | Mantenerse en JPA estándar |
 | JwtEncoder HS256 | "Failed to select a JWK signing key" | `JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims)` |
+| `:param IS NULL OR ...` con Postgres | `function lower(bytea) does not exist` | Reemplazar `@Query` con `JpaSpecificationExecutor` + CriteriaBuilder |
