@@ -393,11 +393,11 @@ Esta fase es la más delicada. Ojo con la consistencia.
 6. Endpoint de stats: agregaciones SQL nativas o via JPQL con groupBy en `paymentMethod`.
 
 **Done cuando**:
-- [ ] Crear venta descuenta stock correctamente (verificar manualmente vía Swagger).
-- [ ] Crear venta sin stock suficiente devuelve 422 con `ProblemDetail` + nada se persiste.
-- [ ] Cancelar venta restituye stock.
-- [ ] Stats endpoint devuelve totales y breakdown coherentes.
-- [ ] Commit: `feat(sales): pos with atomic stock decrement and stats`.
+- [x] Crear venta descuenta stock correctamente (verificar manualmente vía Swagger).
+- [x] Crear venta sin stock suficiente devuelve 422 con `ProblemDetail` + nada se persiste.
+- [x] Cancelar venta restituye stock.
+- [x] Stats endpoint devuelve totales y breakdown coherentes.
+- [x] Commit: `feat(sales): pos with atomic stock decrement and stats`.
 
 ---
 
@@ -519,7 +519,7 @@ Cuando todas estas estén ✅, el MVP está terminado:
 - [x] Fase 2: auth con JWT
 - [x] Fase 3: catálogo (brands, products, variants)
 - [x] Fase 4: events
-- [ ] Fase 5: sales (POS)
+- [x] Fase 5: sales (POS)
 - [ ] Fase 6: hardening
 - [ ] (opcional) Fase 7: tests
 - [ ] (cuando el usuario quiera) Fase 8: deployment
