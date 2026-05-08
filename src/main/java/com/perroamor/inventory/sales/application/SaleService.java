@@ -2,6 +2,9 @@ package com.perroamor.inventory.sales.application;
 
 import com.perroamor.inventory.catalog.application.ProductService;
 import com.perroamor.inventory.catalog.application.ProductVariantService;
+import com.perroamor.inventory.catalog.combos.application.ComboService;
+import com.perroamor.inventory.catalog.combos.domain.Combo;
+import com.perroamor.inventory.catalog.combos.domain.ComboItem;
 import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductVariant;
 import com.perroamor.inventory.events.application.EventService;
@@ -26,7 +29,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class SaleService {
@@ -35,15 +40,18 @@ public class SaleService {
     private final EventService eventService;
     private final ProductService productService;
     private final ProductVariantService variantService;
+    private final ComboService comboService;
 
     public SaleService(SaleRepository saleRepository,
                        EventService eventService,
                        ProductService productService,
-                       ProductVariantService variantService) {
+                       ProductVariantService variantService,
+                       ComboService comboService) {
         this.saleRepository = saleRepository;
         this.eventService = eventService;
         this.productService = productService;
         this.variantService = variantService;
+        this.comboService = comboService;
     }
 
     public Page<Sale> search(SaleFilter filter, PageRequest pageRequest) {
@@ -73,49 +81,127 @@ public class SaleService {
             throw new BusinessRuleException("El evento está inactivo.");
         }
 
-        // Bloqueo en orden estable para evitar deadlocks (productId asc, variantId asc).
-        List<CreateSaleCommand.NewItem> sortedItems = command.items().stream()
-                .sorted(Comparator
-                        .comparing(CreateSaleCommand.NewItem::productId)
-                        .thenComparing(i -> i.variantId() == null ? Long.MIN_VALUE : i.variantId()))
-                .toList();
-
-        BigDecimal itemsTotal = BigDecimal.ZERO;
-        List<SaleItem> snapshotItems = new ArrayList<>();
-
-        for (CreateSaleCommand.NewItem item : sortedItems) {
-            BigDecimal unitPrice;
-            if (item.variantId() != null) {
-                ProductVariant beforeDecrement = variantService.getById(item.variantId());
-                if (!beforeDecrement.productId().equals(item.productId())) {
-                    throw new ValidationException(
-                            "La variante " + item.variantId() + " no pertenece al producto " + item.productId() + ".");
+        // Resolver cada item: producto suelto o combo (con sus componentes).
+        List<ResolvedItem> resolvedItems = new ArrayList<>();
+        for (CreateSaleCommand.NewItem item : command.items()) {
+            if (item.comboId() != null) {
+                Combo combo = comboService.getById(item.comboId());
+                if (!combo.isActive()) {
+                    throw new BusinessRuleException("El combo '" + combo.name() + "' está inactivo.");
                 }
-                Product product = productService.getById(item.productId());
-                unitPrice = product.price().add(
-                        beforeDecrement.priceAdjustment() == null ? BigDecimal.ZERO : beforeDecrement.priceAdjustment());
-                variantService.decrementStock(item.variantId(), item.quantity());
+                resolvedItems.add(new ResolvedItem.OfCombo(item, combo));
             } else {
                 Product product = productService.getById(item.productId());
-                if (product.hasVariants()) {
-                    throw new ValidationException(
-                            "El producto '" + product.name() + "' tiene variantes; debés especificar variantId.");
+                if (item.variantId() != null) {
+                    ProductVariant variant = variantService.getById(item.variantId());
+                    if (!variant.productId().equals(item.productId())) {
+                        throw new ValidationException(
+                                "La variante " + item.variantId() +
+                                " no pertenece al producto " + item.productId() + ".");
+                    }
+                    if (!variant.isActive()) {
+                        throw new BusinessRuleException(
+                                "La variante '" + variant.variantName() + "' está inactiva.");
+                    }
+                    resolvedItems.add(new ResolvedItem.OfVariant(item, product, variant));
+                } else {
+                    if (product.hasVariants()) {
+                        throw new ValidationException(
+                                "El producto '" + product.name() +
+                                "' tiene variantes; debés especificar variantId.");
+                    }
+                    if (!product.isActive()) {
+                        throw new BusinessRuleException(
+                                "El producto '" + product.name() + "' está inactivo.");
+                    }
+                    resolvedItems.add(new ResolvedItem.OfProduct(item, product));
                 }
-                unitPrice = product.price();
-                productService.decrementStock(item.productId(), item.quantity());
+            }
+        }
+
+        // Acumular stock a descontar en un solo lugar (key = productId|variantId, qty total).
+        // Si un mismo producto/variante aparece en varios items o como componente de combos,
+        // se acumula y se hace un solo decrement por key — evita locks redundantes.
+        Map<StockKey, Integer> totalDecrements = new HashMap<>();
+        for (ResolvedItem ri : resolvedItems) {
+            switch (ri) {
+                case ResolvedItem.OfProduct p ->
+                        addDecrement(totalDecrements,
+                                new StockKey(p.product.id(), null), p.item.quantity());
+                case ResolvedItem.OfVariant v ->
+                        addDecrement(totalDecrements,
+                                new StockKey(v.variant.productId(), v.variant.id()), v.item.quantity());
+                case ResolvedItem.OfCombo c -> {
+                    for (ComboItem comp : c.combo.items()) {
+                        addDecrement(totalDecrements,
+                                new StockKey(comp.productId(), comp.variantId()),
+                                comp.quantity() * c.item.quantity());
+                    }
+                }
+            }
+        }
+
+        // Ordenar y aplicar decrements en orden estable (productId asc, variantId asc) — anti-deadlock.
+        totalDecrements.entrySet().stream()
+                .sorted(Comparator
+                        .<Map.Entry<StockKey, Integer>, Long>comparing(e -> e.getKey().productId)
+                        .thenComparing(e -> e.getKey().variantId == null ? Long.MIN_VALUE : e.getKey().variantId))
+                .forEach(e -> {
+                    StockKey key = e.getKey();
+                    int qty = e.getValue();
+                    if (key.variantId != null) {
+                        variantService.decrementStock(key.variantId, qty);
+                    } else {
+                        productService.decrementStock(key.productId, qty);
+                    }
+                });
+
+        // Construir sale_items snapshot — uno por item original del command (combos NO se expanden acá).
+        BigDecimal itemsTotal = BigDecimal.ZERO;
+        List<SaleItem> snapshotItems = new ArrayList<>();
+        for (ResolvedItem ri : resolvedItems) {
+            BigDecimal unitPrice;
+            Long productId, variantId, comboId;
+            String comboName;
+
+            switch (ri) {
+                case ResolvedItem.OfProduct p -> {
+                    unitPrice = p.product.price();
+                    productId = p.product.id();
+                    variantId = null;
+                    comboId = null;
+                    comboName = null;
+                }
+                case ResolvedItem.OfVariant v -> {
+                    BigDecimal adj = v.variant.priceAdjustment() == null ? BigDecimal.ZERO : v.variant.priceAdjustment();
+                    unitPrice = v.product.price().add(adj);
+                    productId = v.product.id();
+                    variantId = v.variant.id();
+                    comboId = null;
+                    comboName = null;
+                }
+                case ResolvedItem.OfCombo c -> {
+                    unitPrice = c.combo.price();
+                    productId = null;
+                    variantId = null;
+                    comboId = c.combo.id();
+                    comboName = c.combo.name();
+                }
             }
 
-            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(item.quantity()));
+            BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(ri.item().quantity()));
             itemsTotal = itemsTotal.add(lineTotal);
 
             snapshotItems.add(new SaleItem(
                     null,
                     null,
-                    item.productId(),
-                    item.variantId(),
-                    item.quantity(),
+                    productId,
+                    variantId,
+                    comboId,
+                    comboName,
+                    ri.item().quantity(),
                     unitPrice,
-                    item.personalization(),
+                    ri.item().personalization(),
                     lineTotal));
         }
 
@@ -149,6 +235,15 @@ public class SaleService {
         return saleRepository.save(toSave);
     }
 
+    /**
+     * Cancela una venta y restituye stock atómicamente.
+     * Idempotente: si ya estaba cancelada, devuelve sin hacer nada.
+     *
+     * NOTA sobre combos: la restitución de stock de un combo se calcula contra la composición
+     * ACTUAL del combo. Si entre la venta y la cancelación cambió la composición (se agregaron/
+     * removieron componentes), el stock se restituye a la versión nueva. Para MVP es aceptable;
+     * si el negocio lo requiere, sería necesario persistir snapshot de la composición al vender.
+     */
     @Transactional
     public Sale cancelSale(Long id) {
         Sale existing = getById(id);
@@ -156,9 +251,19 @@ public class SaleService {
             return existing;
         }
         for (SaleItem item : existing.items()) {
-            if (item.variantId() != null) {
+            if (item.comboId() != null) {
+                Combo combo = comboService.getById(item.comboId());
+                for (ComboItem comp : combo.items()) {
+                    int totalQty = comp.quantity() * item.quantity();
+                    if (comp.variantId() != null) {
+                        variantService.incrementStock(comp.variantId(), totalQty);
+                    } else {
+                        productService.incrementStock(comp.productId(), totalQty);
+                    }
+                }
+            } else if (item.variantId() != null) {
                 variantService.incrementStock(item.variantId(), item.quantity());
-            } else {
+            } else if (item.productId() != null) {
                 productService.incrementStock(item.productId(), item.quantity());
             }
         }
@@ -173,8 +278,15 @@ public class SaleService {
             throw new ValidationException("El método de pago es obligatorio.");
         }
         for (CreateSaleCommand.NewItem item : command.items()) {
-            if (item.productId() == null) {
-                throw new ValidationException("Todos los ítems deben referenciar un productId.");
+            boolean hasCombo = item.comboId() != null;
+            boolean hasProduct = item.productId() != null;
+            if (hasCombo == hasProduct) {
+                throw new ValidationException(
+                        "Cada ítem debe referenciar productId O comboId, nunca ambos ni ninguno.");
+            }
+            if (hasCombo && item.variantId() != null) {
+                throw new ValidationException(
+                        "Un ítem de combo no puede tener variantId.");
             }
             if (item.quantity() <= 0) {
                 throw new ValidationException("La cantidad de cada ítem debe ser mayor a cero.");
@@ -185,6 +297,26 @@ public class SaleService {
         }
         if (command.taxAmount() != null && command.taxAmount().signum() < 0) {
             throw new ValidationException("Los impuestos no pueden ser negativos.");
+        }
+    }
+
+    private static void addDecrement(Map<StockKey, Integer> map, StockKey key, int qty) {
+        map.merge(key, qty, Integer::sum);
+    }
+
+    private record StockKey(Long productId, Long variantId) {
+    }
+
+    private sealed interface ResolvedItem {
+        CreateSaleCommand.NewItem item();
+
+        record OfProduct(CreateSaleCommand.NewItem item, Product product) implements ResolvedItem {
+        }
+
+        record OfVariant(CreateSaleCommand.NewItem item, Product product, ProductVariant variant) implements ResolvedItem {
+        }
+
+        record OfCombo(CreateSaleCommand.NewItem item, Combo combo) implements ResolvedItem {
         }
     }
 }

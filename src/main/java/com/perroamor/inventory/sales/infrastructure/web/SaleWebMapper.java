@@ -35,7 +35,7 @@ public class SaleWebMapper {
                 request.isPaid() == null || request.isPaid(),
                 request.items().stream()
                         .map(i -> new CreateSaleCommand.NewItem(
-                                i.productId(), i.variantId(), i.quantity(), i.personalization()))
+                                i.productId(), i.variantId(), i.comboId(), i.quantity(), i.personalization()))
                         .toList());
     }
 
@@ -67,6 +67,8 @@ public class SaleWebMapper {
                 item.id(),
                 item.productId(),
                 item.variantId(),
+                item.comboId(),
+                item.comboName(),
                 item.quantity(),
                 item.unitPrice(),
                 item.personalization(),

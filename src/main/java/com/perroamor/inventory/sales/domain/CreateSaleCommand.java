@@ -19,6 +19,7 @@ public record CreateSaleCommand(
     public record NewItem(
             Long productId,
             Long variantId,
+            Long comboId,
             int quantity,
             String personalization
     ) {

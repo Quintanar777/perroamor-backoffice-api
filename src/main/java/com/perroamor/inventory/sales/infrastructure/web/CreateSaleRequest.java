@@ -26,8 +26,9 @@ public record CreateSaleRequest(
 ) {
 
     public record Item(
-            @NotNull Long productId,
+            Long productId,
             Long variantId,
+            Long comboId,
             @NotNull @Positive Integer quantity,
             @Size(max = 255) String personalization
     ) {

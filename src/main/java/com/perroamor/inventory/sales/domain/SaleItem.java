@@ -7,6 +7,8 @@ public record SaleItem(
         Long saleId,
         Long productId,
         Long variantId,
+        Long comboId,
+        String comboName,
         int quantity,
         BigDecimal unitPrice,
         String personalization,

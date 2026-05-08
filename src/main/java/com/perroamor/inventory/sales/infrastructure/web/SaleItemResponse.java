@@ -6,6 +6,8 @@ public record SaleItemResponse(
         Long id,
         Long productId,
         Long variantId,
+        Long comboId,
+        String comboName,
         int quantity,
         BigDecimal unitPrice,
         String personalization,

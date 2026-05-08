@@ -2,6 +2,8 @@ package com.perroamor.inventory.sales.infrastructure.persistence;
 
 import com.perroamor.inventory.auth.infrastructure.persistence.UserJpaEntity;
 import com.perroamor.inventory.auth.infrastructure.persistence.UserJpaRepository;
+import com.perroamor.inventory.catalog.combos.infrastructure.persistence.ComboJpaEntity;
+import com.perroamor.inventory.catalog.combos.infrastructure.persistence.ComboJpaRepository;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductJpaEntity;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductJpaRepository;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductVariantJpaEntity;
@@ -35,17 +37,20 @@ public class SaleRepositoryAdapter implements SaleRepository {
     private final UserJpaRepository userJpa;
     private final ProductJpaRepository productJpa;
     private final ProductVariantJpaRepository variantJpa;
+    private final ComboJpaRepository comboJpa;
 
     public SaleRepositoryAdapter(SaleJpaRepository jpa,
                                  EventJpaRepository eventJpa,
                                  UserJpaRepository userJpa,
                                  ProductJpaRepository productJpa,
-                                 ProductVariantJpaRepository variantJpa) {
+                                 ProductVariantJpaRepository variantJpa,
+                                 ComboJpaRepository comboJpa) {
         this.jpa = jpa;
         this.eventJpa = eventJpa;
         this.userJpa = userJpa;
         this.productJpa = productJpa;
         this.variantJpa = variantJpa;
+        this.comboJpa = comboJpa;
     }
 
     @Override
@@ -91,11 +96,16 @@ public class SaleRepositoryAdapter implements SaleRepository {
 
         for (SaleItem item : sale.items()) {
             SaleItemJpaEntity itemEntity = new SaleItemJpaEntity();
-            ProductJpaEntity product = productJpa.getReferenceById(item.productId());
-            itemEntity.setProduct(product);
-            if (item.variantId() != null) {
-                ProductVariantJpaEntity variant = variantJpa.getReferenceById(item.variantId());
-                itemEntity.setVariant(variant);
+            if (item.comboId() != null) {
+                ComboJpaEntity combo = comboJpa.getReferenceById(item.comboId());
+                itemEntity.setCombo(combo);
+            } else {
+                ProductJpaEntity product = productJpa.getReferenceById(item.productId());
+                itemEntity.setProduct(product);
+                if (item.variantId() != null) {
+                    ProductVariantJpaEntity variant = variantJpa.getReferenceById(item.variantId());
+                    itemEntity.setVariant(variant);
+                }
             }
             itemEntity.setQuantity(item.quantity());
             itemEntity.setUnitPrice(item.unitPrice());

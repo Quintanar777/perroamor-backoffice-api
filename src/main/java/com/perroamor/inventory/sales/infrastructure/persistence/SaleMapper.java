@@ -14,8 +14,10 @@ public final class SaleMapper {
         return new SaleItem(
                 entity.getId(),
                 entity.getSale() != null ? entity.getSale().getId() : null,
-                entity.getProduct().getId(),
+                entity.getProduct() != null ? entity.getProduct().getId() : null,
                 entity.getVariant() != null ? entity.getVariant().getId() : null,
+                entity.getCombo() != null ? entity.getCombo().getId() : null,
+                entity.getCombo() != null ? entity.getCombo().getName() : null,
                 entity.getQuantity(),
                 entity.getUnitPrice(),
                 entity.getPersonalization(),
