@@ -314,9 +314,9 @@ Variants:
 5. Web: controller con DTO que incluye el `status` calculado.
 
 **Done cuando**:
-- [ ] Crear evento, listarlo, ver el current.
-- [ ] El status calculado coincide con la fecha actual.
-- [ ] Commit: `feat(events): event management with derived status`.
+- [x] Crear evento, listarlo, ver el current.
+- [x] El status calculado coincide con la fecha actual.
+- [x] Commit: `feat(events): event management with derived status`.
 
 ---
 
@@ -518,7 +518,7 @@ Cuando todas estas estén ✅, el MVP está terminado:
 - [x] Fase 1: cross-cutting
 - [x] Fase 2: auth con JWT
 - [x] Fase 3: catálogo (brands, products, variants)
-- [ ] Fase 4: events
+- [x] Fase 4: events
 - [ ] Fase 5: sales (POS)
 - [ ] Fase 6: hardening
 - [ ] (opcional) Fase 7: tests
