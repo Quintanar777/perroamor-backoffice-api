@@ -218,12 +218,12 @@ src/test/java/com/perroamor/inventory/
 6. **Web**: `AuthController` con los endpoints, request/response records, validation.
 
 **Done cuando**:
-- [ ] Login con credenciales seedeadas devuelve JWT válido.
-- [ ] Hit a `/me` con `Authorization: Bearer <token>` devuelve usuario.
-- [ ] Hit sin token devuelve 401 con `ProblemDetail`.
-- [ ] Hit con token inválido devuelve 401.
-- [ ] Refresh funciona.
-- [ ] Commit: `feat(auth): jwt authentication with users and roles`.
+- [x] Login con credenciales seedeadas devuelve JWT válido.
+- [x] Hit a `/me` con `Authorization: Bearer <token>` devuelve usuario.
+- [x] Hit sin token devuelve 401 con `ProblemDetail`.
+- [x] Hit con token inválido devuelve 401.
+- [x] Refresh funciona.
+- [x] Commit: `feat(auth): jwt authentication with users and roles`.
 
 ---
 
@@ -516,7 +516,7 @@ Cuando todas estas estén ✅, el MVP está terminado:
 
 - [x] Fase 0: bootstrap
 - [x] Fase 1: cross-cutting
-- [ ] Fase 2: auth con JWT
+- [x] Fase 2: auth con JWT
 - [ ] Fase 3: catálogo (brands, products, variants)
 - [ ] Fase 4: events
 - [ ] Fase 5: sales (POS)
