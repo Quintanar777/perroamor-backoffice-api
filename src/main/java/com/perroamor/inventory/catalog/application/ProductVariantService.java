@@ -75,4 +75,12 @@ public class ProductVariantService {
         getById(id);
         variantRepository.softDelete(id);
     }
+
+    public ProductVariant decrementStock(Long id, int quantity) {
+        return variantRepository.decrementStock(id, quantity);
+    }
+
+    public ProductVariant incrementStock(Long id, int quantity) {
+        return variantRepository.incrementStock(id, quantity);
+    }
 }

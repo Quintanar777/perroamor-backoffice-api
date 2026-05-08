@@ -2,6 +2,8 @@ package com.perroamor.inventory.catalog.infrastructure.persistence;
 
 import com.perroamor.inventory.catalog.domain.ProductVariant;
 import com.perroamor.inventory.catalog.domain.ProductVariantRepository;
+import com.perroamor.inventory.shared.error.BusinessRuleException;
+import com.perroamor.inventory.shared.error.NotFoundException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -80,5 +82,29 @@ public class ProductVariantRepositoryAdapter implements ProductVariantRepository
     @Transactional
     public void softDelete(Long id) {
         jpa.softDelete(id);
+    }
+
+    @Override
+    @Transactional
+    public ProductVariant decrementStock(Long id, int quantity) {
+        ProductVariantJpaEntity entity = jpa.findByIdForUpdate(id)
+                .orElseThrow(() -> NotFoundException.of("Variante", id));
+        if (entity.getStock() < quantity) {
+            throw new BusinessRuleException(
+                    "Stock insuficiente para variante '" + entity.getVariantName() +
+                    "' (SKU " + entity.getSku() + ", disponible: " + entity.getStock() +
+                    ", solicitado: " + quantity + ").");
+        }
+        entity.setStock(entity.getStock() - quantity);
+        return mapper.toDomain(jpa.saveAndFlush(entity));
+    }
+
+    @Override
+    @Transactional
+    public ProductVariant incrementStock(Long id, int quantity) {
+        ProductVariantJpaEntity entity = jpa.findByIdForUpdate(id)
+                .orElseThrow(() -> NotFoundException.of("Variante", id));
+        entity.setStock(entity.getStock() + quantity);
+        return mapper.toDomain(jpa.saveAndFlush(entity));
     }
 }

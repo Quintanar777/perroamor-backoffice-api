@@ -18,4 +18,8 @@ public interface ProductRepository {
     void softDelete(Long id);
 
     Product adjustStock(Long id, int delta);
+
+    Product decrementStock(Long id, int quantity);
+
+    Product incrementStock(Long id, int quantity);
 }

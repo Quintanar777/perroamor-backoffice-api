@@ -18,4 +18,8 @@ public interface ProductVariantRepository {
     ProductVariant update(ProductVariant variant);
 
     void softDelete(Long id);
+
+    ProductVariant decrementStock(Long id, int quantity);
+
+    ProductVariant incrementStock(Long id, int quantity);
 }

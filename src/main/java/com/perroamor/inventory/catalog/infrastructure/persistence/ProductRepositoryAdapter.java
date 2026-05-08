@@ -3,6 +3,8 @@ package com.perroamor.inventory.catalog.infrastructure.persistence;
 import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductFilter;
 import com.perroamor.inventory.catalog.domain.ProductRepository;
+import com.perroamor.inventory.shared.error.BusinessRuleException;
+import com.perroamor.inventory.shared.error.NotFoundException;
 import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -91,6 +93,29 @@ public class ProductRepositoryAdapter implements ProductRepository {
             throw new IllegalStateException("Stock no puede quedar negativo (stock actual " + entity.getStock() + ", delta " + delta + ").");
         }
         entity.setStock(next);
+        return mapper.toDomain(jpa.saveAndFlush(entity));
+    }
+
+    @Override
+    @Transactional
+    public Product decrementStock(Long id, int quantity) {
+        ProductJpaEntity entity = jpa.findByIdForUpdate(id)
+                .orElseThrow(() -> NotFoundException.of("Producto", id));
+        if (entity.getStock() < quantity) {
+            throw new BusinessRuleException(
+                    "Stock insuficiente para producto '" + entity.getName() +
+                    "' (disponible: " + entity.getStock() + ", solicitado: " + quantity + ").");
+        }
+        entity.setStock(entity.getStock() - quantity);
+        return mapper.toDomain(jpa.saveAndFlush(entity));
+    }
+
+    @Override
+    @Transactional
+    public Product incrementStock(Long id, int quantity) {
+        ProductJpaEntity entity = jpa.findByIdForUpdate(id)
+                .orElseThrow(() -> NotFoundException.of("Producto", id));
+        entity.setStock(entity.getStock() + quantity);
         return mapper.toDomain(jpa.saveAndFlush(entity));
     }
 }

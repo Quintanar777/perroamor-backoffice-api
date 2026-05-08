@@ -95,4 +95,12 @@ public class ProductService {
         }
         return productRepository.adjustStock(id, delta);
     }
+
+    public Product decrementStock(Long id, int quantity) {
+        return productRepository.decrementStock(id, quantity);
+    }
+
+    public Product incrementStock(Long id, int quantity) {
+        return productRepository.incrementStock(id, quantity);
+    }
 }
