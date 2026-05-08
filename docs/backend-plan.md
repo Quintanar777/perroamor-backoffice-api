@@ -179,10 +179,10 @@ src/test/java/com/perroamor/inventory/
    - Formato console con timestamp, thread, logger, mensaje.
 
 **Done cuando**:
-- [ ] Hit a una ruta inexistente devuelve un `ProblemDetail` con shape consistente.
-- [ ] `/swagger-ui.html` carga (sin endpoints todavía, pero la UI está).
-- [ ] CORS funciona con el origin configurado.
-- [ ] Commit: `feat: cross-cutting (error handling, openapi, cors, profiles)`.
+- [x] Hit a una ruta inexistente devuelve un `ProblemDetail` con shape consistente.
+- [x] `/swagger-ui.html` carga (sin endpoints todavía, pero la UI está).
+- [x] CORS funciona con el origin configurado.
+- [x] Commit: `feat: cross-cutting (error handling, openapi, cors, profiles)`.
 
 ---
 
@@ -515,7 +515,7 @@ Si en algún momento durante la ejecución aparece una de estas, parar y consult
 Cuando todas estas estén ✅, el MVP está terminado:
 
 - [x] Fase 0: bootstrap
-- [ ] Fase 1: cross-cutting
+- [x] Fase 1: cross-cutting
 - [ ] Fase 2: auth con JWT
 - [ ] Fase 3: catálogo (brands, products, variants)
 - [ ] Fase 4: events
