@@ -105,11 +105,11 @@ public class SaleService {
                     }
                     resolvedItems.add(new ResolvedItem.OfVariant(item, product, variant));
                 } else {
-                    if (product.hasVariants()) {
-                        throw new ValidationException(
-                                "El producto '" + product.name() +
-                                "' tiene variantes; debés especificar variantId.");
-                    }
+                    // Producto sin variantId. Aceptamos esto incluso si el producto tiene
+                    // hasVariants=true: en la práctica los empleados no eligen variante
+                    // durante un evento con mucha gente. Cuando se vende sin variant,
+                    // el descuento de stock va al campo product.stock (no a variants).
+                    // Trade-off: product.stock puede no coincidir exactamente con sum(variants.stock).
                     if (!product.isActive()) {
                         throw new BusinessRuleException(
                                 "El producto '" + product.name() + "' está inactivo.");
@@ -142,6 +142,8 @@ public class SaleService {
         }
 
         // Ordenar y aplicar decrements en orden estable (productId asc, variantId asc) — anti-deadlock.
+        // product.stock es el contador maestro: SIEMPRE se descuenta (con o sin variant).
+        // Si la venta especifica variant, además se descuenta variant.stock para mantener el breakdown.
         totalDecrements.entrySet().stream()
                 .sorted(Comparator
                         .<Map.Entry<StockKey, Integer>, Long>comparing(e -> e.getKey().productId)
@@ -151,9 +153,8 @@ public class SaleService {
                     int qty = e.getValue();
                     if (key.variantId != null) {
                         variantService.decrementStock(key.variantId, qty);
-                    } else {
-                        productService.decrementStock(key.productId, qty);
                     }
+                    productService.decrementStock(key.productId, qty);
                 });
 
         // Construir sale_items snapshot — uno por item original del command (combos NO se expanden acá).
@@ -257,13 +258,13 @@ public class SaleService {
                     int totalQty = comp.quantity() * item.quantity();
                     if (comp.variantId() != null) {
                         variantService.incrementStock(comp.variantId(), totalQty);
-                    } else {
-                        productService.incrementStock(comp.productId(), totalQty);
                     }
+                    productService.incrementStock(comp.productId(), totalQty);
                 }
-            } else if (item.variantId() != null) {
-                variantService.incrementStock(item.variantId(), item.quantity());
             } else if (item.productId() != null) {
+                if (item.variantId() != null) {
+                    variantService.incrementStock(item.variantId(), item.quantity());
+                }
                 productService.incrementStock(item.productId(), item.quantity());
             }
         }

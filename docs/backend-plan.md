@@ -238,7 +238,13 @@ src/test/java/com/perroamor/inventory/
 
 `Product`:
 - id, name, brandId, category, price (BigDecimal), wholesalePrice (BigDecimal), stock (int), description, canBePersonalized (bool), hasVariants (bool).
-- Reglas: si `hasVariants=true`, el stock real vive en las variantes; el campo `stock` del producto representa total agregado.
+- Reglas de stock (revisado post-MVP — modelo dual sincronizado, V10):
+  - `product.stock` es **siempre** el contador maestro del producto (tenga o no variantes).
+  - Si `hasVariants=true`, las variantes son un breakdown adicional; `variant.stock` representa el sub-stock por variante.
+  - **Vender CON variantId** descuenta atómicamente AMBOS: `variant.stock` Y `product.stock`. Mantiene el breakdown sincronizado con el agregado.
+  - **Vender SIN variantId** (incluso teniendo el producto variantes) descuenta solo `product.stock`. No se elige variante automáticamente. El breakdown por variant pierde precisión, pero el agregado sigue exacto.
+  - **Cancelar** es simétrico: si la venta tenía variantId, restituye AMBOS; si no, solo `product.stock`.
+  - Migración V10 consolidó `product.stock = sum(variants.stock)` para todos los productos con `hasVariants=true` que históricamente tenían `product.stock=0`.
 
 `ProductVariant`:
 - id, productId, variantName, color, size, design, material, sku (único), stock, priceAdjustment (BigDecimal, puede ser 0), isActive.
@@ -339,9 +345,9 @@ Esta fase es la más delicada. Ojo con la consistencia.
 1. Una venta solo puede crearse contra un evento `IN_PROGRESS` (con flag para forzar testing offline si hace falta — pero NO en MVP).
 2. Crear una venta descuenta stock atómicamente:
    - Si el item tiene `variantId`, descuenta de la variante.
-   - Si no, descuenta del producto.
+   - Si no, descuenta del producto (independiente de si el producto tiene variantes — ver "Reglas de stock" en `Product` arriba).
    - Si no hay stock suficiente → `BusinessRuleException` y rollback total.
-3. Cancelar una venta REVIERTE el stock.
+3. Cancelar una venta REVIERTE el stock al mismo lugar de donde se descontó.
 4. El `unitPrice` se SNAPSHOTEA al crear la venta — si el precio del producto cambia después, las ventas históricas no se afectan.
 5. `totalAmount = sum(item.lineTotal) - discountAmount + taxAmount`.
 
