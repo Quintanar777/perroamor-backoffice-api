@@ -30,6 +30,7 @@ public record CreateSaleRequest(
             Long variantId,
             Long comboId,
             @NotNull @Positive Integer quantity,
+            @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal unitPrice,
             @Size(max = 255) String personalization
     ) {
     }

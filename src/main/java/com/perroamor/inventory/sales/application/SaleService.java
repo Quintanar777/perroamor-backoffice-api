@@ -165,9 +165,10 @@ public class SaleService {
             Long productId, variantId, comboId;
             String comboName;
 
+            BigDecimal override = ri.item().unitPriceOverride();
             switch (ri) {
                 case ResolvedItem.OfProduct p -> {
-                    unitPrice = p.product.price();
+                    unitPrice = override != null ? override : p.product.price();
                     productId = p.product.id();
                     variantId = null;
                     comboId = null;
@@ -175,14 +176,14 @@ public class SaleService {
                 }
                 case ResolvedItem.OfVariant v -> {
                     BigDecimal adj = v.variant.priceAdjustment() == null ? BigDecimal.ZERO : v.variant.priceAdjustment();
-                    unitPrice = v.product.price().add(adj);
+                    unitPrice = override != null ? override : v.product.price().add(adj);
                     productId = v.product.id();
                     variantId = v.variant.id();
                     comboId = null;
                     comboName = null;
                 }
                 case ResolvedItem.OfCombo c -> {
-                    unitPrice = c.combo.price();
+                    unitPrice = override != null ? override : c.combo.price();
                     productId = null;
                     variantId = null;
                     comboId = c.combo.id();

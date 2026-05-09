@@ -21,6 +21,7 @@ public record CreateSaleCommand(
             Long variantId,
             Long comboId,
             int quantity,
+            BigDecimal unitPriceOverride,
             String personalization
     ) {
     }
