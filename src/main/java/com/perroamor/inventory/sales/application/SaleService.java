@@ -163,14 +163,16 @@ public class SaleService {
         for (ResolvedItem ri : resolvedItems) {
             BigDecimal unitPrice;
             Long productId, variantId, comboId;
-            String comboName;
+            String productName, variantName, comboName;
 
             BigDecimal override = ri.item().unitPriceOverride();
             switch (ri) {
                 case ResolvedItem.OfProduct p -> {
                     unitPrice = override != null ? override : p.product.price();
                     productId = p.product.id();
+                    productName = p.product.name();
                     variantId = null;
+                    variantName = null;
                     comboId = null;
                     comboName = null;
                 }
@@ -178,14 +180,18 @@ public class SaleService {
                     BigDecimal adj = v.variant.priceAdjustment() == null ? BigDecimal.ZERO : v.variant.priceAdjustment();
                     unitPrice = override != null ? override : v.product.price().add(adj);
                     productId = v.product.id();
+                    productName = v.product.name();
                     variantId = v.variant.id();
+                    variantName = v.variant.variantName();
                     comboId = null;
                     comboName = null;
                 }
                 case ResolvedItem.OfCombo c -> {
                     unitPrice = override != null ? override : c.combo.price();
                     productId = null;
+                    productName = null;
                     variantId = null;
+                    variantName = null;
                     comboId = c.combo.id();
                     comboName = c.combo.name();
                 }
@@ -198,7 +204,9 @@ public class SaleService {
                     null,
                     null,
                     productId,
+                    productName,
                     variantId,
+                    variantName,
                     comboId,
                     comboName,
                     ri.item().quantity(),

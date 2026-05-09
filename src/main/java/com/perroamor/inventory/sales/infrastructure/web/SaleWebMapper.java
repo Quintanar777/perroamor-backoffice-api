@@ -67,7 +67,9 @@ public class SaleWebMapper {
         return new SaleItemResponse(
                 item.id(),
                 item.productId(),
+                item.productName(),
                 item.variantId(),
+                item.variantName(),
                 item.comboId(),
                 item.comboName(),
                 item.quantity(),
