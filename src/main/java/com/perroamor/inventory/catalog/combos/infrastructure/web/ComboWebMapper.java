@@ -48,6 +48,7 @@ public class ComboWebMapper {
                 combo.description(),
                 combo.brandId(),
                 combo.brandName(),
+                combo.brandColor(),
                 combo.price(),
                 combo.wholesalePrice(),
                 combo.isActive(),

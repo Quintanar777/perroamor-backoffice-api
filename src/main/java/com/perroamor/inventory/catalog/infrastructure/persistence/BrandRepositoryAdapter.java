@@ -52,6 +52,7 @@ public class BrandRepositoryAdapter implements BrandRepository {
                 .orElseThrow(() -> new IllegalStateException("Brand " + brand.id() + " no encontrado"));
         existing.setName(brand.name());
         existing.setDescription(brand.description());
+        existing.setBaseColor(brand.baseColor());
         existing.setActive(brand.isActive());
         return mapper.toDomain(jpa.saveAndFlush(existing));
     }

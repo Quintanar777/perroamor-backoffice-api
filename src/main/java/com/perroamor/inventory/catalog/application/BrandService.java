@@ -26,22 +26,22 @@ public class BrandService {
                 .orElseThrow(() -> NotFoundException.of("Marca", id));
     }
 
-    public Brand create(String name, String description) {
+    public Brand create(String name, String description, String baseColor) {
         brandRepository.findByName(name).ifPresent(b -> {
             throw new ConflictException("Ya existe una marca con el nombre '" + name + "'.");
         });
-        Brand brand = new Brand(null, name, description, true, null);
+        Brand brand = new Brand(null, name, description, baseColor, true, null);
         return brandRepository.save(brand);
     }
 
-    public Brand update(Long id, String name, String description, boolean isActive) {
+    public Brand update(Long id, String name, String description, String baseColor, boolean isActive) {
         Brand existing = getById(id);
         brandRepository.findByName(name).ifPresent(other -> {
             if (!other.id().equals(id)) {
                 throw new ConflictException("Ya existe otra marca con el nombre '" + name + "'.");
             }
         });
-        Brand updated = new Brand(existing.id(), name, description, isActive, existing.createdAt());
+        Brand updated = new Brand(existing.id(), name, description, baseColor, isActive, existing.createdAt());
         return brandRepository.update(updated);
     }
 

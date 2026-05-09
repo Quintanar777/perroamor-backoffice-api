@@ -9,6 +9,7 @@ public interface ProductMapper {
 
     @Mapping(target = "brandId", source = "brand.id")
     @Mapping(target = "brandName", source = "brand.name")
+    @Mapping(target = "brandColor", source = "brand.baseColor")
     @Mapping(target = "isActive", source = "active")
     Product toDomain(ProductJpaEntity entity);
 

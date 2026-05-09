@@ -46,7 +46,7 @@ public class BrandController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public BrandResponse create(@Valid @RequestBody BrandRequest request) {
-        Brand created = brandService.create(request.name(), request.description());
+        Brand created = brandService.create(request.name(), request.description(), request.baseColor());
         return mapper.toBrandResponse(created);
     }
 
@@ -54,7 +54,7 @@ public class BrandController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public BrandResponse update(@PathVariable Long id, @Valid @RequestBody BrandRequest request) {
         boolean isActive = request.isActive() == null || request.isActive();
-        Brand updated = brandService.update(id, request.name(), request.description(), isActive);
+        Brand updated = brandService.update(id, request.name(), request.description(), request.baseColor(), isActive);
         return mapper.toBrandResponse(updated);
     }
 

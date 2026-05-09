@@ -22,6 +22,7 @@ public interface CatalogMapper {
                 request.name(),
                 request.brandId(),
                 null,
+                null,
                 request.category(),
                 request.price(),
                 request.wholesalePrice(),

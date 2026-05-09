@@ -8,6 +8,7 @@ public record ProductResponse(
         String name,
         Long brandId,
         String brandName,
+        String brandColor,
         String category,
         BigDecimal price,
         BigDecimal wholesalePrice,

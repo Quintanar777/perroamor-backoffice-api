@@ -31,6 +31,7 @@ public final class ComboMapper {
                 entity.getDescription(),
                 entity.getBrand().getId(),
                 entity.getBrand().getName(),
+                entity.getBrand().getBaseColor(),
                 entity.getPrice(),
                 entity.getWholesalePrice(),
                 entity.isActive(),

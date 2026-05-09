@@ -27,6 +27,9 @@ public class BrandJpaEntity {
     @Column(length = 500)
     private String description;
 
+    @Column(name = "base_color", length = 7)
+    private String baseColor;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
@@ -42,6 +45,9 @@ public class BrandJpaEntity {
 
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+
+    public String getBaseColor() { return baseColor; }
+    public void setBaseColor(String baseColor) { this.baseColor = baseColor; }
 
     public boolean isActive() { return isActive; }
     public void setActive(boolean active) { this.isActive = active; }

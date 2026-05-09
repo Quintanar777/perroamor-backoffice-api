@@ -10,6 +10,7 @@ public record Combo(
         String description,
         Long brandId,
         String brandName,
+        String brandColor,
         BigDecimal price,
         BigDecimal wholesalePrice,
         boolean isActive,
