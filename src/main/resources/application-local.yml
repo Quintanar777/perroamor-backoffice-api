@@ -13,7 +13,9 @@ app:
   cors:
     allowed-origins:
       - http://localhost:5173
+      - http://localhost:5174
       - http://127.0.0.1:5173
+      - http://127.0.0.1:5174
   jwt:
     secret: dev-only-secret-replace-in-prod-256-bits-minimum-this-string-is-padded-on-purpose-do-not-use-in-prod
     access-ttl-minutes: 15
