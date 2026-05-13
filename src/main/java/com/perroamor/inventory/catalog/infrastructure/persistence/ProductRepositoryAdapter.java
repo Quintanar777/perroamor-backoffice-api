@@ -19,13 +19,16 @@ public class ProductRepositoryAdapter implements ProductRepository {
 
     private final ProductJpaRepository jpa;
     private final BrandJpaRepository brandJpa;
+    private final ProductVariantJpaRepository variantJpa;
     private final ProductMapper mapper;
 
     public ProductRepositoryAdapter(ProductJpaRepository jpa,
                                     BrandJpaRepository brandJpa,
+                                    ProductVariantJpaRepository variantJpa,
                                     ProductMapper mapper) {
         this.jpa = jpa;
         this.brandJpa = brandJpa;
+        this.variantJpa = variantJpa;
         this.mapper = mapper;
     }
 
@@ -37,14 +40,14 @@ public class ProductRepositoryAdapter implements ProductRepository {
 
         var jpaPage = jpa.findAll(ProductSpecifications.withFilter(filter), pageable);
 
-        var content = jpaPage.getContent().stream().map(mapper::toDomain).toList();
+        var content = jpaPage.getContent().stream().map(this::toDomainWithStock).toList();
         return Page.of(content, pageRequest.page(), pageRequest.size(), jpaPage.getTotalElements());
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<Product> findById(Long id) {
-        return jpa.findById(id).map(mapper::toDomain);
+        return jpa.findById(id).map(this::toDomainWithStock);
     }
 
     @Override
@@ -117,5 +120,13 @@ public class ProductRepositoryAdapter implements ProductRepository {
                 .orElseThrow(() -> NotFoundException.of("Producto", id));
         entity.setStock(entity.getStock() + quantity);
         return mapper.toDomain(jpa.saveAndFlush(entity));
+    }
+
+    private Product toDomainWithStock(ProductJpaEntity entity) {
+        Product product = mapper.toDomain(entity);
+        if (product.hasVariants()) {
+            return product.withStock(variantJpa.sumActiveStockByProductId(entity.getId()));
+        }
+        return product;
     }
 }

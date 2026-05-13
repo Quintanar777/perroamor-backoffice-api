@@ -72,8 +72,13 @@ public class SalesReportController {
         var rows = report.rows().stream()
                 .map(r -> new SalesReportRowResponse(
                         r.brandId(), r.brandName(),
-                        r.productId(), r.productName(),
-                        r.totalQuantity(), r.totalRevenue(), r.salesCount()))
+                        r.productId(), r.productName(), r.currentStock(),
+                        r.totalQuantity(), r.totalRevenue(), r.salesCount(),
+                        r.variants().stream()
+                                .map(v -> new SalesReportVariantRowResponse(
+                                        v.variantId(), v.variantName(), v.currentStock(),
+                                        v.totalQuantity(), v.totalRevenue(), v.salesCount()))
+                                .toList()))
                 .toList();
         return new SalesReportResponse(summary, rows);
     }
@@ -81,13 +86,24 @@ public class SalesReportController {
     private byte[] buildCsv(List<SalesReportRow> rows) {
         var sb = new StringBuilder();
         sb.append('﻿'); // BOM UTF-8 para compatibilidad con Excel
-        sb.append("Marca,Producto,Unidades Vendidas,Ingresos,Num. Ventas\n");
+        sb.append("Marca,Producto,Variante,Stock Actual,Unidades Vendidas,Ingresos,Num. Ventas\n");
         for (SalesReportRow row : rows) {
             sb.append(escapeCsv(row.brandName())).append(',');
             sb.append(escapeCsv(row.productName())).append(',');
+            sb.append(','); // sin variante
+            sb.append(row.currentStock()).append(',');
             sb.append(row.totalQuantity()).append(',');
             sb.append(row.totalRevenue()).append(',');
             sb.append(row.salesCount()).append('\n');
+            for (var v : row.variants()) {
+                sb.append(','); // sin marca
+                sb.append(escapeCsv(row.productName())).append(',');
+                sb.append(escapeCsv(v.variantName())).append(',');
+                sb.append(v.currentStock()).append(',');
+                sb.append(v.totalQuantity()).append(',');
+                sb.append(v.totalRevenue()).append(',');
+                sb.append(v.salesCount()).append('\n');
+            }
         }
         return sb.toString().getBytes(StandardCharsets.UTF_8);
     }

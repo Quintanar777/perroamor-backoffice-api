@@ -20,4 +20,9 @@ public record Product(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
+    public Product withStock(int newStock) {
+        return new Product(id, name, brandId, brandName, brandColor, category, price,
+                wholesalePrice, newStock, description, canBePersonalized, hasVariants,
+                isActive, createdAt, updatedAt);
+    }
 }

@@ -24,6 +24,9 @@ public interface ProductVariantJpaRepository extends JpaRepository<ProductVarian
     @Query("UPDATE ProductVariantJpaEntity v SET v.isActive = false WHERE v.id = :id")
     int softDelete(@Param("id") Long id);
 
+    @Query("SELECT COALESCE(SUM(v.stock), 0) FROM ProductVariantJpaEntity v WHERE v.product.id = :productId AND v.isActive = true")
+    int sumActiveStockByProductId(@Param("productId") Long productId);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT v FROM ProductVariantJpaEntity v WHERE v.id = :id")
     Optional<ProductVariantJpaEntity> findByIdForUpdate(@Param("id") Long id);
