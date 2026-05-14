@@ -103,6 +103,7 @@ public class SalesReportRepositoryAdapter implements SalesReportRepository {
     }
 
     private void appendConditions(StringBuilder jpql, SalesReportFilter filter) {
+        if (filter.eventId() != null)       jpql.append("AND si.sale.event.id = :eventId\n");
         if (filter.brandId() != null)       jpql.append("AND si.product.brand.id = :brandId\n");
         if (filter.productId() != null)     jpql.append("AND si.product.id = :productId\n");
         if (filter.paymentMethod() != null) jpql.append("AND si.sale.paymentMethod = :paymentMethod\n");
@@ -111,6 +112,7 @@ public class SalesReportRepositoryAdapter implements SalesReportRepository {
     }
 
     private void bindParameters(jakarta.persistence.Query query, SalesReportFilter filter) {
+        if (filter.eventId() != null)       query.setParameter("eventId", filter.eventId());
         if (filter.brandId() != null)       query.setParameter("brandId", filter.brandId());
         if (filter.productId() != null)     query.setParameter("productId", filter.productId());
         if (filter.paymentMethod() != null) query.setParameter("paymentMethod", filter.paymentMethod());

@@ -33,25 +33,27 @@ public class SalesReportController {
 
     @GetMapping
     public SalesReportResponse query(
+            @RequestParam(required = false) Long eventId,
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) Long productId,
             @RequestParam(required = false) PaymentMethod paymentMethod,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
-        SalesReport report = service.query(new SalesReportFilter(brandId, productId, paymentMethod, startDate, endDate));
+        SalesReport report = service.query(new SalesReportFilter(eventId, brandId, productId, paymentMethod, startDate, endDate));
         return toResponse(report);
     }
 
     @GetMapping("/export")
     public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) Long eventId,
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) Long productId,
             @RequestParam(required = false) PaymentMethod paymentMethod,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
-        SalesReport report = service.query(new SalesReportFilter(brandId, productId, paymentMethod, startDate, endDate));
+        SalesReport report = service.query(new SalesReportFilter(eventId, brandId, productId, paymentMethod, startDate, endDate));
         byte[] csv = buildCsv(report.rows());
 
         String filename = "reporte-ventas-"
