@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -227,7 +228,7 @@ public class SaleService {
                 command.eventId(),
                 command.soldByUserId(),
                 null,
-                LocalDateTime.now(),
+                LocalDateTime.now(ZoneId.of("America/Mexico_City")),
                 command.paymentMethod(),
                 command.customerName(),
                 command.customerPhone(),
