@@ -26,8 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 public class SaleRepositoryAdapter implements SaleRepository {
@@ -129,18 +132,26 @@ public class SaleRepositoryAdapter implements SaleRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public SaleStats statsByEvent(Long eventId) {
-        long total = jpa.countActiveByEventId(eventId);
-        BigDecimal totalAmount = jpa.sumActiveByEventId(eventId);
-        if (totalAmount == null) totalAmount = BigDecimal.ZERO;
+    public SaleStats stats(SaleFilter filter) {
+        List<SaleJpaEntity> sales = jpa.findAll(SaleSpecifications.withFilter(filter));
 
-        List<SaleStats.PaymentMethodBreakdown> breakdown = jpa.aggregateByPaymentMethod(eventId).stream()
-                .map(row -> new SaleStats.PaymentMethodBreakdown(
-                        row.getPaymentMethod() == null ? PaymentMethod.OTHER : row.getPaymentMethod(),
-                        row.getCount(),
-                        row.getAmount() == null ? BigDecimal.ZERO : row.getAmount()))
+        BigDecimal totalAmount = sales.stream()
+                .map(SaleJpaEntity::getTotalAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        Map<PaymentMethod, List<SaleJpaEntity>> grouped = sales.stream()
+                .collect(Collectors.groupingBy(SaleJpaEntity::getPaymentMethod));
+
+        List<SaleStats.PaymentMethodBreakdown> breakdown = grouped.entrySet().stream()
+                .map(e -> new SaleStats.PaymentMethodBreakdown(
+                        e.getKey(),
+                        e.getValue().size(),
+                        e.getValue().stream()
+                                .map(SaleJpaEntity::getTotalAmount)
+                                .reduce(BigDecimal.ZERO, BigDecimal::add)))
+                .sorted(Comparator.comparing(b -> b.paymentMethod().name()))
                 .toList();
 
-        return new SaleStats(eventId, total, totalAmount, breakdown);
+        return new SaleStats(filter.eventId(), sales.size(), totalAmount, breakdown);
     }
 }

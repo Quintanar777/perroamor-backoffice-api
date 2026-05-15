@@ -24,6 +24,7 @@ import com.perroamor.inventory.sales.domain.PaymentMethod;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -91,7 +92,7 @@ public class SaleJpaEntity {
 
     @PrePersist
     void onCreate() {
-        if (saleDate == null) saleDate = LocalDateTime.now();
+        if (saleDate == null) saleDate = LocalDateTime.now(ZoneId.of("America/Mexico_City"));
     }
 
     public void addItem(SaleItemJpaEntity item) {

@@ -49,11 +49,11 @@ public class SaleController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(required = false) PaymentMethod paymentMethod,
-            @RequestParam(required = false) Boolean includeCancelled,
+            @RequestParam(required = false) Boolean isCancelled,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        SaleFilter filter = new SaleFilter(eventId, from, to, paymentMethod, includeCancelled);
+        SaleFilter filter = new SaleFilter(eventId, from, to, paymentMethod, isCancelled);
         Page<Sale> result = saleService.search(filter, PageRequest.of(page, size));
         return PagedResponse.map(result, mapper::toResponse);
     }
@@ -70,7 +70,12 @@ public class SaleController {
     }
 
     @GetMapping("/stats")
-    public SaleStatsResponse stats(@RequestParam Long eventId) {
-        return mapper.toStatsResponse(saleService.stats(eventId));
+    public SaleStatsResponse stats(
+            @RequestParam Long eventId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) PaymentMethod paymentMethod) {
+        SaleFilter filter = new SaleFilter(eventId, from, to, paymentMethod, false);
+        return mapper.toStatsResponse(saleService.stats(filter));
     }
 }

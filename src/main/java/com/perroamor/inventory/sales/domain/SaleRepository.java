@@ -15,5 +15,5 @@ public interface SaleRepository {
 
     Sale markCancelled(Long id);
 
-    SaleStats statsByEvent(Long eventId);
+    SaleStats stats(SaleFilter filter);
 }

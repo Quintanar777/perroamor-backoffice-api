@@ -7,6 +7,6 @@ public record SaleFilter(
         LocalDateTime from,
         LocalDateTime to,
         PaymentMethod paymentMethod,
-        Boolean includeCancelled
+        Boolean isCancelled  // null=all, false=only active, true=only cancelled
 ) {
 }

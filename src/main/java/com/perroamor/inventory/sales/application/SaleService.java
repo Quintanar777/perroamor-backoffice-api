@@ -64,9 +64,9 @@ public class SaleService {
                 .orElseThrow(() -> NotFoundException.of("Venta", id));
     }
 
-    public SaleStats stats(Long eventId) {
-        eventService.getById(eventId);
-        return saleRepository.statsByEvent(eventId);
+    public SaleStats stats(SaleFilter filter) {
+        eventService.getById(filter.eventId());
+        return saleRepository.stats(filter);
     }
 
     @Transactional

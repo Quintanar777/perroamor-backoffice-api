@@ -28,8 +28,8 @@ public final class SaleSpecifications {
             if (filter.paymentMethod() != null) {
                 predicates.add(cb.equal(root.get("paymentMethod"), filter.paymentMethod()));
             }
-            if (filter.includeCancelled() == null || !filter.includeCancelled()) {
-                predicates.add(cb.equal(root.get("isCancelled"), false));
+            if (filter.isCancelled() != null) {
+                predicates.add(cb.equal(root.get("isCancelled"), filter.isCancelled()));
             }
 
             return predicates.isEmpty() ? cb.conjunction() : cb.and(predicates.toArray(new Predicate[0]));
