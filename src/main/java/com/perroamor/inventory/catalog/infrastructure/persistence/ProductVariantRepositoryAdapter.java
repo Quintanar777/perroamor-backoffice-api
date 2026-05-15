@@ -58,7 +58,9 @@ public class ProductVariantRepositoryAdapter implements ProductVariantRepository
         ProductJpaEntity productRef = productJpa.getReferenceById(variant.productId());
         ProductVariantJpaEntity entity = mapper.toEntity(variant);
         entity.setProduct(productRef);
-        return mapper.toDomain(jpa.save(entity));
+        ProductVariantJpaEntity saved = jpa.saveAndFlush(entity);
+        syncProductStock(variant.productId());
+        return mapper.toDomain(saved);
     }
 
     @Override
@@ -75,13 +77,28 @@ public class ProductVariantRepositoryAdapter implements ProductVariantRepository
         existing.setStock(variant.stock());
         existing.setPriceAdjustment(variant.priceAdjustment());
         existing.setActive(variant.isActive());
-        return mapper.toDomain(jpa.saveAndFlush(existing));
+        ProductVariantJpaEntity saved = jpa.saveAndFlush(existing);
+        syncProductStock(existing.getProduct().getId());
+        return mapper.toDomain(saved);
     }
 
     @Override
     @Transactional
     public void softDelete(Long id) {
+        ProductVariantJpaEntity entity = jpa.findById(id)
+                .orElseThrow(() -> NotFoundException.of("Variante", id));
+        Long productId = entity.getProduct().getId();
         jpa.softDelete(id);
+        jpa.flush();
+        syncProductStock(productId);
+    }
+
+    private void syncProductStock(Long productId) {
+        int sum = jpa.sumActiveStockByProductId(productId);
+        productJpa.findById(productId).ifPresent(p -> {
+            p.setStock(sum);
+            productJpa.saveAndFlush(p);
+        });
     }
 
     @Override
