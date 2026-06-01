@@ -2,15 +2,18 @@ package com.perroamor.inventory.reports.infrastructure.persistence;
 
 import com.perroamor.inventory.reports.domain.SalesReport;
 import com.perroamor.inventory.reports.domain.SalesReportFilter;
+import com.perroamor.inventory.reports.domain.SalesReportLine;
 import com.perroamor.inventory.reports.domain.SalesReportRepository;
 import com.perroamor.inventory.reports.domain.SalesReportRow;
 import com.perroamor.inventory.reports.domain.SalesReportSummary;
 import com.perroamor.inventory.reports.domain.SalesReportVariantRow;
+import com.perroamor.inventory.sales.domain.PaymentMethod;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -36,6 +39,48 @@ public class SalesReportRepositoryAdapter implements SalesReportRepository {
                 .toList();
 
         return new SalesReport(buildSummary(rows), rows);
+    }
+
+    @Override
+    public List<SalesReportLine> queryLines(SalesReportFilter filter) {
+        // LEFT JOIN explícito en variant: es nullable. Un path implícito (si.variant.x)
+        // haría INNER JOIN y descartaría las líneas de productos sin variante.
+        var jpql = new StringBuilder("""
+                SELECT si.sale.id, si.sale.saleDate, si.sale.event.name, si.sale.paymentMethod,
+                       si.product.brand.name, si.product.name, v.variantName,
+                       si.quantity, si.unitPrice, si.lineTotal,
+                       si.product.price, v.priceAdjustment
+                FROM SaleItemJpaEntity si
+                LEFT JOIN si.variant v
+                WHERE si.product IS NOT NULL
+                AND si.sale.isCancelled = false
+                """);
+
+        appendConditions(jpql, filter);
+
+        jpql.append("""
+                ORDER BY si.sale.id ASC, si.product.brand.name ASC, si.product.name ASC
+                """);
+
+        var query = em.createQuery(jpql.toString());
+        bindParameters(query, filter);
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> raw = query.getResultList();
+
+        return raw.stream().map(r -> {
+            BigDecimal productPrice = (BigDecimal) r[10];
+            BigDecimal priceAdjustment = (BigDecimal) r[11];
+            BigDecimal currentPrice = productPrice == null
+                    ? null
+                    : productPrice.add(priceAdjustment != null ? priceAdjustment : BigDecimal.ZERO);
+
+            return new SalesReportLine(
+                    (Long) r[0], (LocalDateTime) r[1], (String) r[2], (PaymentMethod) r[3],
+                    (String) r[4], (String) r[5], (String) r[6],
+                    ((Number) r[7]).longValue(), (BigDecimal) r[8], currentPrice, (BigDecimal) r[9]
+            );
+        }).toList();
     }
 
     private List<SalesReportRow> queryProductRows(SalesReportFilter filter) {

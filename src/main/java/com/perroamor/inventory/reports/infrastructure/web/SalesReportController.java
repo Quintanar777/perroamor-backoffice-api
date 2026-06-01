@@ -3,7 +3,7 @@ package com.perroamor.inventory.reports.infrastructure.web;
 import com.perroamor.inventory.reports.application.SalesReportService;
 import com.perroamor.inventory.reports.domain.SalesReport;
 import com.perroamor.inventory.reports.domain.SalesReportFilter;
-import com.perroamor.inventory.reports.domain.SalesReportRow;
+import com.perroamor.inventory.reports.domain.SalesReportLine;
 import com.perroamor.inventory.sales.domain.PaymentMethod;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -53,10 +54,10 @@ public class SalesReportController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
-        SalesReport report = service.query(new SalesReportFilter(eventId, brandId, productId, paymentMethod, startDate, endDate));
-        byte[] csv = buildCsv(report.rows());
+        List<SalesReportLine> lines = service.queryLines(new SalesReportFilter(eventId, brandId, productId, paymentMethod, startDate, endDate));
+        byte[] csv = buildCsv(lines);
 
-        String filename = "reporte-ventas-"
+        String filename = "reporte-ventas-detalle-"
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
                 + ".csv";
 
@@ -85,27 +86,29 @@ public class SalesReportController {
         return new SalesReportResponse(summary, rows);
     }
 
-    private byte[] buildCsv(List<SalesReportRow> rows) {
+    private byte[] buildCsv(List<SalesReportLine> lines) {
+        var dateFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         var sb = new StringBuilder();
         sb.append('﻿'); // BOM UTF-8 para compatibilidad con Excel
-        sb.append("Marca,Producto,Variante,Stock Actual,Unidades Vendidas,Ingresos,Num. Ventas\n");
-        for (SalesReportRow row : rows) {
-            sb.append(escapeCsv(row.brandName())).append(',');
-            sb.append(escapeCsv(row.productName())).append(',');
-            sb.append(','); // sin variante
-            sb.append(row.currentStock()).append(',');
-            sb.append(row.totalQuantity()).append(',');
-            sb.append(row.totalRevenue()).append(',');
-            sb.append(row.salesCount()).append('\n');
-            for (var v : row.variants()) {
-                sb.append(','); // sin marca
-                sb.append(escapeCsv(row.productName())).append(',');
-                sb.append(escapeCsv(v.variantName())).append(',');
-                sb.append(v.currentStock()).append(',');
-                sb.append(v.totalQuantity()).append(',');
-                sb.append(v.totalRevenue()).append(',');
-                sb.append(v.salesCount()).append('\n');
-            }
+        sb.append("Venta,Fecha,Evento,Metodo de pago,Marca,Producto,Variante,")
+          .append("Unidades,Precio Unitario,Precio Actual,Diferencia Unitaria,Total Linea\n");
+        for (SalesReportLine line : lines) {
+            BigDecimal diff = (line.currentPrice() == null || line.unitPrice() == null)
+                    ? null
+                    : line.currentPrice().subtract(line.unitPrice());
+
+            sb.append(line.saleId()).append(',');
+            sb.append(line.saleDate() != null ? line.saleDate().format(dateFmt) : "").append(',');
+            sb.append(escapeCsv(line.eventName())).append(',');
+            sb.append(line.paymentMethod() != null ? line.paymentMethod().name() : "").append(',');
+            sb.append(escapeCsv(line.brandName())).append(',');
+            sb.append(escapeCsv(line.productName())).append(',');
+            sb.append(escapeCsv(line.variantName())).append(',');
+            sb.append(line.quantity()).append(',');
+            sb.append(line.unitPrice()).append(',');
+            sb.append(line.currentPrice() != null ? line.currentPrice() : "").append(',');
+            sb.append(diff != null ? diff : "").append(',');
+            sb.append(line.lineTotal()).append('\n');
         }
         return sb.toString().getBytes(StandardCharsets.UTF_8);
     }
