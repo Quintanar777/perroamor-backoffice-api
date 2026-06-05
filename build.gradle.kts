@@ -20,6 +20,7 @@ repositories {
 
 val mapstructVersion = "1.6.3"
 val springdocVersion = "2.8.13"
+val vavrVersion = "0.10.4"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -33,6 +34,8 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
+
+    implementation("io.vavr:vavr:$vavrVersion")
 
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
     annotationProcessor("org.mapstruct:mapstruct-processor:$mapstructVersion")

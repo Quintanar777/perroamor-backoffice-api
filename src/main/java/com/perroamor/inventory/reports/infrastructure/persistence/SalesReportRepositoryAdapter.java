@@ -38,7 +38,7 @@ public class SalesReportRepositoryAdapter implements SalesReportRepository {
                         variantsByProduct.getOrDefault(r.productId(), List.of())))
                 .toList();
 
-        return new SalesReport(buildSummary(rows), rows);
+        return new SalesReport(buildSummary(rows, filter), rows);
     }
 
     @Override
@@ -165,12 +165,29 @@ public class SalesReportRepositoryAdapter implements SalesReportRepository {
         if (filter.endDate() != null)       query.setParameter("endDate", filter.endDate());
     }
 
-    private SalesReportSummary buildSummary(List<SalesReportRow> rows) {
-        long totalSalesCount = rows.stream().mapToLong(SalesReportRow::salesCount).sum();
-        long totalQuantity   = rows.stream().mapToLong(SalesReportRow::totalQuantity).sum();
-        BigDecimal totalRevenue = rows.stream()
-                .map(SalesReportRow::totalRevenue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    private SalesReportSummary buildSummary(List<SalesReportRow> rows, SalesReportFilter filter) {
+        long totalQuantity = rows.stream().mapToLong(SalesReportRow::totalQuantity).sum();
+
+        var jpql = new StringBuilder("""
+                SELECT COUNT(s.id), SUM(s.totalAmount)
+                FROM SaleJpaEntity s
+                WHERE s.isCancelled = false
+                """);
+        if (filter.eventId() != null)       jpql.append("AND s.event.id = :eventId\n");
+        if (filter.paymentMethod() != null) jpql.append("AND s.paymentMethod = :paymentMethod\n");
+        if (filter.startDate() != null)     jpql.append("AND s.saleDate >= :startDate\n");
+        if (filter.endDate() != null)       jpql.append("AND s.saleDate <= :endDate\n");
+
+        var query = em.createQuery(jpql.toString());
+        if (filter.eventId() != null)       query.setParameter("eventId", filter.eventId());
+        if (filter.paymentMethod() != null) query.setParameter("paymentMethod", filter.paymentMethod());
+        if (filter.startDate() != null)     query.setParameter("startDate", filter.startDate());
+        if (filter.endDate() != null)       query.setParameter("endDate", filter.endDate());
+
+        Object[] result = (Object[]) query.getSingleResult();
+        long totalSalesCount = ((Number) result[0]).longValue();
+        BigDecimal totalRevenue = result[1] != null ? (BigDecimal) result[1] : BigDecimal.ZERO;
+
         return new SalesReportSummary(totalSalesCount, totalQuantity, totalRevenue);
     }
 }

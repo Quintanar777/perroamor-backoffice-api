@@ -24,6 +24,8 @@ import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.vavr.control.Option;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -166,10 +168,10 @@ public class SaleService {
             Long productId, variantId, comboId;
             String productName, variantName, comboName;
 
-            BigDecimal override = ri.item().unitPriceOverride();
+            Option<BigDecimal> override = Option.of(ri.item().unitPriceOverride());
             switch (ri) {
                 case ResolvedItem.OfProduct p -> {
-                    unitPrice = override != null ? override : p.product.price();
+                    unitPrice = override.getOrElse(p.product.price());
                     productId = p.product.id();
                     productName = p.product.name();
                     variantId = null;
@@ -178,8 +180,8 @@ public class SaleService {
                     comboName = null;
                 }
                 case ResolvedItem.OfVariant v -> {
-                    BigDecimal adj = v.variant.priceAdjustment() == null ? BigDecimal.ZERO : v.variant.priceAdjustment();
-                    unitPrice = override != null ? override : v.product.price().add(adj);
+                    BigDecimal adj = Option.of(v.variant.priceAdjustment()).getOrElse(BigDecimal.ZERO);
+                    unitPrice = override.getOrElse(v.product.price().add(adj));
                     productId = v.product.id();
                     productName = v.product.name();
                     variantId = v.variant.id();
@@ -188,7 +190,7 @@ public class SaleService {
                     comboName = null;
                 }
                 case ResolvedItem.OfCombo c -> {
-                    unitPrice = override != null ? override : c.combo.price();
+                    unitPrice = override.getOrElse(c.combo.price());
                     productId = null;
                     productName = null;
                     variantId = null;
@@ -216,8 +218,8 @@ public class SaleService {
                     lineTotal));
         }
 
-        BigDecimal discount = command.discountAmount() == null ? BigDecimal.ZERO : command.discountAmount();
-        BigDecimal tax      = command.taxAmount()      == null ? BigDecimal.ZERO : command.taxAmount();
+        BigDecimal discount = Option.of(command.discountAmount()).getOrElse(BigDecimal.ZERO);
+        BigDecimal tax      = Option.of(command.taxAmount()).getOrElse(BigDecimal.ZERO);
         BigDecimal total    = itemsTotal.subtract(discount).add(tax);
         if (total.signum() < 0) {
             throw new BusinessRuleException("El total de la venta no puede ser negativo.");
@@ -274,7 +276,7 @@ public class SaleService {
             } else if (item.productId() != null) {
                 if (item.variantId() != null) {
                     variantService.incrementStock(item.variantId(), item.quantity());
-                }
+                }   
                 productService.incrementStock(item.productId(), item.quantity());
             }
         }
