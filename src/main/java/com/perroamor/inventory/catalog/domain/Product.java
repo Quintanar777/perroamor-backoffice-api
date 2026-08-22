@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 public record Product(
         Long id,
         String name,
+        String code,
         Long brandId,
         String brandName,
         String brandColor,
@@ -21,8 +22,14 @@ public record Product(
         LocalDateTime updatedAt
 ) {
     public Product withStock(int newStock) {
-        return new Product(id, name, brandId, brandName, brandColor, category, price,
+        return new Product(id, name, code, brandId, brandName, brandColor, category, price,
                 wholesalePrice, newStock, description, canBePersonalized, hasVariants,
+                isActive, createdAt, updatedAt);
+    }
+
+    public Product withCode(String newCode) {
+        return new Product(id, name, newCode, brandId, brandName, brandColor, category, price,
+                wholesalePrice, stock, description, canBePersonalized, hasVariants,
                 isActive, createdAt, updatedAt);
     }
 }

@@ -4,10 +4,14 @@ import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductFilter;
 import com.perroamor.inventory.catalog.domain.ProductRepository;
 import com.perroamor.inventory.shared.error.BusinessRuleException;
+import com.perroamor.inventory.shared.error.ConflictException;
 import com.perroamor.inventory.shared.error.NotFoundException;
 import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class ProductService {
@@ -31,9 +35,13 @@ public class ProductService {
 
     public Product create(Product product) {
         brandService.getById(product.brandId());
+        if (product.code() != null && productRepository.existsByCode(product.code())) {
+            throw new ConflictException("Ya existe un producto con código '" + product.code() + "'.");
+        }
         Product toSave = new Product(
                 null,
                 product.name(),
+                product.code(),
                 product.brandId(),
                 null,
                 null,
@@ -47,15 +55,23 @@ public class ProductService {
                 true,
                 null,
                 null);
-        return productRepository.save(toSave);
+        Product saved = productRepository.save(toSave);
+        if (saved.code() == null) {
+            saved = productRepository.update(saved.withCode(generateCode(saved.id())));
+        }
+        return saved;
     }
 
     public Product update(Long id, Product product) {
         Product existing = getById(id);
         brandService.getById(product.brandId());
+        if (product.code() != null && productRepository.existsByCodeAndIdNot(product.code(), id)) {
+            throw new ConflictException("Ya existe otro producto con código '" + product.code() + "'.");
+        }
         Product updated = new Product(
                 existing.id(),
                 product.name(),
+                product.code(),
                 product.brandId(),
                 null,
                 null,
@@ -104,5 +120,39 @@ public class ProductService {
 
     public Product incrementStock(Long id, int quantity) {
         return productRepository.incrementStock(id, quantity);
+    }
+
+    public List<Product> backfillMissingCodes() {
+        return productRepository.findAllWithoutCode().stream()
+                .map(product -> productRepository.update(product.withCode(generateCode(product.id()))))
+                .toList();
+    }
+
+    public Product regenerateCode(Long id) {
+        Product product = getById(id);
+        String code = generateRandomCode();
+        int attempts = 0;
+        while (productRepository.existsByCode(code) && attempts < 5) {
+            code = generateRandomCode();
+            attempts++;
+        }
+        return productRepository.update(product.withCode(code));
+    }
+
+    private String generateCode(Long id) {
+        return "P" + "%06d".formatted(id);
+    }
+
+    // Sin 0/O ni 1/I/L — se evitan caracteres ambiguos porque el código
+    // también sirve como fallback tecleado a mano si el lector no está a la mano.
+    private static final String RANDOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    private String generateRandomCode() {
+        var random = ThreadLocalRandom.current();
+        var sb = new StringBuilder("P");
+        for (int i = 0; i < 6; i++) {
+            sb.append(RANDOM_CODE_CHARS.charAt(random.nextInt(RANDOM_CODE_CHARS.length())));
+        }
+        return sb.toString();
     }
 }

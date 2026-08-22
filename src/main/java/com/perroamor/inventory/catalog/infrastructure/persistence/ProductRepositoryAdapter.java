@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -51,6 +52,30 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Product> findByCode(String code) {
+        return jpa.findByCode(code).map(this::toDomainWithStock);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> findAllWithoutCode() {
+        return jpa.findAllByCodeIsNull().stream().map(this::toDomainWithStock).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByCode(String code) {
+        return jpa.existsByCode(code);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByCodeAndIdNot(String code, Long id) {
+        return jpa.existsByCodeAndIdNot(code, id);
+    }
+
+    @Override
     @Transactional
     public Product save(Product product) {
         BrandJpaEntity brandRef = brandJpa.getReferenceById(product.brandId());
@@ -69,6 +94,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
             existing.setBrand(brandJpa.getReferenceById(product.brandId()));
         }
         existing.setName(product.name());
+        existing.setCode(product.code());
         existing.setCategory(product.category());
         existing.setPrice(product.price());
         existing.setWholesalePrice(product.wholesalePrice());

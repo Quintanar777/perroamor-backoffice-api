@@ -9,6 +9,8 @@ public interface ProductVariantRepository {
 
     Optional<ProductVariant> findById(Long id);
 
+    Optional<ProductVariant> findBySku(String sku);
+
     boolean existsBySku(String sku);
 
     boolean existsBySkuAndIdNot(String sku, Long id);

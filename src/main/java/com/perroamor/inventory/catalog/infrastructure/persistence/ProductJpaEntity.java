@@ -29,6 +29,9 @@ public class ProductJpaEntity {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(length = 60)
+    private String code;
+
     @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "brand_id", nullable = false)
     private BrandJpaEntity brand;
@@ -70,6 +73,9 @@ public class ProductJpaEntity {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getCode() { return code; }
+    public void setCode(String code) { this.code = code; }
 
     public BrandJpaEntity getBrand() { return brand; }
     public void setBrand(BrandJpaEntity brand) { this.brand = brand; }

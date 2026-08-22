@@ -20,6 +20,7 @@ public interface CatalogMapper {
         return new Product(
                 null,
                 request.name(),
+                request.code(),
                 request.brandId(),
                 null,
                 null,
