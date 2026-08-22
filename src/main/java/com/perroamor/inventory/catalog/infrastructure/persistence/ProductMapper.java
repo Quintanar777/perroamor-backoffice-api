@@ -12,6 +12,7 @@ public interface ProductMapper {
     @Mapping(target = "brandColor", source = "brand.baseColor")
     @Mapping(target = "isActive", source = "active")
     @Mapping(target = "withStock", ignore = true)
+    @Mapping(target = "withCode", ignore = true)
     Product toDomain(ProductJpaEntity entity);
 
     @Mapping(target = "active", source = "isActive")

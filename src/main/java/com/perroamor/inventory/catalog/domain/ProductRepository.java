@@ -3,6 +3,7 @@ package com.perroamor.inventory.catalog.domain;
 import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository {
@@ -12,6 +13,8 @@ public interface ProductRepository {
     Optional<Product> findById(Long id);
 
     Optional<Product> findByCode(String code);
+
+    List<Product> findAllWithoutCode();
 
     boolean existsByCode(String code);
 

@@ -10,6 +10,8 @@ import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class ProductService {
 
@@ -52,7 +54,11 @@ public class ProductService {
                 true,
                 null,
                 null);
-        return productRepository.save(toSave);
+        Product saved = productRepository.save(toSave);
+        if (saved.code() == null) {
+            saved = productRepository.update(saved.withCode(generateCode(saved.id())));
+        }
+        return saved;
     }
 
     public Product update(Long id, Product product) {
@@ -113,5 +119,15 @@ public class ProductService {
 
     public Product incrementStock(Long id, int quantity) {
         return productRepository.incrementStock(id, quantity);
+    }
+
+    public List<Product> backfillMissingCodes() {
+        return productRepository.findAllWithoutCode().stream()
+                .map(product -> productRepository.update(product.withCode(generateCode(product.id()))))
+                .toList();
+    }
+
+    private String generateCode(Long id) {
+        return "P" + "%06d".formatted(id);
     }
 }

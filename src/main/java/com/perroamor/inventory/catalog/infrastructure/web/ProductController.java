@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/products")
 public class ProductController {
@@ -81,5 +83,11 @@ public class ProductController {
                 ? productService.setStock(id, request.setTo())
                 : productService.adjustStock(id, request.delta());
         return mapper.toProductResponse(updated);
+    }
+
+    @PostMapping("/backfill-codes")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public List<ProductResponse> backfillCodes() {
+        return productService.backfillMissingCodes().stream().map(mapper::toProductResponse).toList();
     }
 }

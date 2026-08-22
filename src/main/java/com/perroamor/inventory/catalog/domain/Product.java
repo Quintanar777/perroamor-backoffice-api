@@ -26,4 +26,10 @@ public record Product(
                 wholesalePrice, newStock, description, canBePersonalized, hasVariants,
                 isActive, createdAt, updatedAt);
     }
+
+    public Product withCode(String newCode) {
+        return new Product(id, name, newCode, brandId, brandName, brandColor, category, price,
+                wholesalePrice, stock, description, canBePersonalized, hasVariants,
+                isActive, createdAt, updatedAt);
+    }
 }

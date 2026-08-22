@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -54,6 +55,12 @@ public class ProductRepositoryAdapter implements ProductRepository {
     @Transactional(readOnly = true)
     public Optional<Product> findByCode(String code) {
         return jpa.findByCode(code).map(this::toDomainWithStock);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Product> findAllWithoutCode() {
+        return jpa.findAllByCodeIsNull().stream().map(this::toDomainWithStock).toList();
     }
 
     @Override
