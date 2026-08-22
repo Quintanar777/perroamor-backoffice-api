@@ -42,6 +42,12 @@ public class ProductVariantRepositoryAdapter implements ProductVariantRepository
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<ProductVariant> findBySku(String sku) {
+        return jpa.findBySku(sku).map(mapper::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public boolean existsBySku(String sku) {
         return jpa.existsBySku(sku);
     }
