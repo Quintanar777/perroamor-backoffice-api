@@ -11,6 +11,7 @@ import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class ProductService {
@@ -127,7 +128,31 @@ public class ProductService {
                 .toList();
     }
 
+    public Product regenerateCode(Long id) {
+        Product product = getById(id);
+        String code = generateRandomCode();
+        int attempts = 0;
+        while (productRepository.existsByCode(code) && attempts < 5) {
+            code = generateRandomCode();
+            attempts++;
+        }
+        return productRepository.update(product.withCode(code));
+    }
+
     private String generateCode(Long id) {
         return "P" + "%06d".formatted(id);
+    }
+
+    // Sin 0/O ni 1/I/L — se evitan caracteres ambiguos porque el código
+    // también sirve como fallback tecleado a mano si el lector no está a la mano.
+    private static final String RANDOM_CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+    private String generateRandomCode() {
+        var random = ThreadLocalRandom.current();
+        var sb = new StringBuilder("P");
+        for (int i = 0; i < 6; i++) {
+            sb.append(RANDOM_CODE_CHARS.charAt(random.nextInt(RANDOM_CODE_CHARS.length())));
+        }
+        return sb.toString();
     }
 }

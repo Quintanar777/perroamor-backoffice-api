@@ -90,4 +90,10 @@ public class ProductController {
     public List<ProductResponse> backfillCodes() {
         return productService.backfillMissingCodes().stream().map(mapper::toProductResponse).toList();
     }
+
+    @PatchMapping("/{id}/regenerate-code")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ProductResponse regenerateCode(@PathVariable Long id) {
+        return mapper.toProductResponse(productService.regenerateCode(id));
+    }
 }
