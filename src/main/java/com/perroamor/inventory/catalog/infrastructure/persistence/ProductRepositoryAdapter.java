@@ -51,6 +51,24 @@ public class ProductRepositoryAdapter implements ProductRepository {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Optional<Product> findByCode(String code) {
+        return jpa.findByCode(code).map(this::toDomainWithStock);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByCode(String code) {
+        return jpa.existsByCode(code);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByCodeAndIdNot(String code, Long id) {
+        return jpa.existsByCodeAndIdNot(code, id);
+    }
+
+    @Override
     @Transactional
     public Product save(Product product) {
         BrandJpaEntity brandRef = brandJpa.getReferenceById(product.brandId());
@@ -69,6 +87,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
             existing.setBrand(brandJpa.getReferenceById(product.brandId()));
         }
         existing.setName(product.name());
+        existing.setCode(product.code());
         existing.setCategory(product.category());
         existing.setPrice(product.price());
         existing.setWholesalePrice(product.wholesalePrice());

@@ -4,6 +4,7 @@ import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductFilter;
 import com.perroamor.inventory.catalog.domain.ProductRepository;
 import com.perroamor.inventory.shared.error.BusinessRuleException;
+import com.perroamor.inventory.shared.error.ConflictException;
 import com.perroamor.inventory.shared.error.NotFoundException;
 import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
@@ -31,9 +32,13 @@ public class ProductService {
 
     public Product create(Product product) {
         brandService.getById(product.brandId());
+        if (product.code() != null && productRepository.existsByCode(product.code())) {
+            throw new ConflictException("Ya existe un producto con código '" + product.code() + "'.");
+        }
         Product toSave = new Product(
                 null,
                 product.name(),
+                product.code(),
                 product.brandId(),
                 null,
                 null,
@@ -53,9 +58,13 @@ public class ProductService {
     public Product update(Long id, Product product) {
         Product existing = getById(id);
         brandService.getById(product.brandId());
+        if (product.code() != null && productRepository.existsByCodeAndIdNot(product.code(), id)) {
+            throw new ConflictException("Ya existe otro producto con código '" + product.code() + "'.");
+        }
         Product updated = new Product(
                 existing.id(),
                 product.name(),
+                product.code(),
                 product.brandId(),
                 null,
                 null,

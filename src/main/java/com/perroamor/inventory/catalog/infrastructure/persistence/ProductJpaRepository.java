@@ -21,4 +21,10 @@ public interface ProductJpaRepository extends
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM ProductJpaEntity p WHERE p.id = :id")
     Optional<ProductJpaEntity> findByIdForUpdate(@Param("id") Long id);
+
+    Optional<ProductJpaEntity> findByCode(String code);
+
+    boolean existsByCode(String code);
+
+    boolean existsByCodeAndIdNot(String code, Long id);
 }
