@@ -14,6 +14,7 @@ public record CreateSaleCommand(
         BigDecimal discountAmount,
         BigDecimal taxAmount,
         boolean isPaid,
+        boolean isWholesale,
         List<NewItem> items
 ) {
     public record NewItem(

@@ -1,6 +1,7 @@
 package com.perroamor.inventory.sales.infrastructure.persistence;
 
 import com.perroamor.inventory.catalog.combos.infrastructure.persistence.ComboJpaEntity;
+import com.perroamor.inventory.catalog.discounts.infrastructure.persistence.DiscountJpaEntity;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductJpaEntity;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductVariantJpaEntity;
 import jakarta.persistence.Column;
@@ -39,6 +40,10 @@ public class SaleItemJpaEntity {
     @JoinColumn(name = "combo_id")
     private ComboJpaEntity combo;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "discount_id")
+    private DiscountJpaEntity discount;
+
     @Column(nullable = false)
     private int quantity;
 
@@ -65,6 +70,9 @@ public class SaleItemJpaEntity {
 
     public ComboJpaEntity getCombo() { return combo; }
     public void setCombo(ComboJpaEntity combo) { this.combo = combo; }
+
+    public DiscountJpaEntity getDiscount() { return discount; }
+    public void setDiscount(DiscountJpaEntity discount) { this.discount = discount; }
 
     public int getQuantity() { return quantity; }
     public void setQuantity(int quantity) { this.quantity = quantity; }

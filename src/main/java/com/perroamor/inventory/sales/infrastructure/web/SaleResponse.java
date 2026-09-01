@@ -22,6 +22,7 @@ public record SaleResponse(
         BigDecimal totalAmount,
         BigDecimal subtotal,
         boolean isPaid,
+        boolean isWholesale,
         boolean isCancelled,
         LocalDateTime cancelledAt,
         LocalDateTime createdAt,

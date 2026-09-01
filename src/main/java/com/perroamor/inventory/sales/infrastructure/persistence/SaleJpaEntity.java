@@ -76,6 +76,9 @@ public class SaleJpaEntity {
     @Column(name = "is_paid", nullable = false)
     private boolean isPaid;
 
+    @Column(name = "is_wholesale", nullable = false)
+    private boolean isWholesale;
+
     @Column(name = "is_cancelled", nullable = false)
     private boolean isCancelled;
 
@@ -138,6 +141,9 @@ public class SaleJpaEntity {
 
     public boolean isPaid() { return isPaid; }
     public void setPaid(boolean paid) { this.isPaid = paid; }
+
+    public boolean isWholesale() { return isWholesale; }
+    public void setWholesale(boolean wholesale) { this.isWholesale = wholesale; }
 
     public boolean isCancelled() { return isCancelled; }
     public void setCancelled(boolean cancelled) { this.isCancelled = cancelled; }

@@ -4,6 +4,8 @@ import com.perroamor.inventory.auth.infrastructure.persistence.UserJpaEntity;
 import com.perroamor.inventory.auth.infrastructure.persistence.UserJpaRepository;
 import com.perroamor.inventory.catalog.combos.infrastructure.persistence.ComboJpaEntity;
 import com.perroamor.inventory.catalog.combos.infrastructure.persistence.ComboJpaRepository;
+import com.perroamor.inventory.catalog.discounts.infrastructure.persistence.DiscountJpaEntity;
+import com.perroamor.inventory.catalog.discounts.infrastructure.persistence.DiscountJpaRepository;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductJpaEntity;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductJpaRepository;
 import com.perroamor.inventory.catalog.infrastructure.persistence.ProductVariantJpaEntity;
@@ -41,19 +43,22 @@ public class SaleRepositoryAdapter implements SaleRepository {
     private final ProductJpaRepository productJpa;
     private final ProductVariantJpaRepository variantJpa;
     private final ComboJpaRepository comboJpa;
+    private final DiscountJpaRepository discountJpa;
 
     public SaleRepositoryAdapter(SaleJpaRepository jpa,
                                  EventJpaRepository eventJpa,
                                  UserJpaRepository userJpa,
                                  ProductJpaRepository productJpa,
                                  ProductVariantJpaRepository variantJpa,
-                                 ComboJpaRepository comboJpa) {
+                                 ComboJpaRepository comboJpa,
+                                 DiscountJpaRepository discountJpa) {
         this.jpa = jpa;
         this.eventJpa = eventJpa;
         this.userJpa = userJpa;
         this.productJpa = productJpa;
         this.variantJpa = variantJpa;
         this.comboJpa = comboJpa;
+        this.discountJpa = discountJpa;
     }
 
     @Override
@@ -94,6 +99,7 @@ public class SaleRepositoryAdapter implements SaleRepository {
         entity.setTaxAmount(sale.taxAmount());
         entity.setTotalAmount(sale.totalAmount());
         entity.setPaid(sale.isPaid());
+        entity.setWholesale(sale.isWholesale());
         entity.setCancelled(sale.isCancelled());
         entity.setCancelledAt(sale.cancelledAt());
 
@@ -109,6 +115,10 @@ public class SaleRepositoryAdapter implements SaleRepository {
                     ProductVariantJpaEntity variant = variantJpa.getReferenceById(item.variantId());
                     itemEntity.setVariant(variant);
                 }
+            }
+            if (item.discountId() != null) {
+                DiscountJpaEntity discount = discountJpa.getReferenceById(item.discountId());
+                itemEntity.setDiscount(discount);
             }
             itemEntity.setQuantity(item.quantity());
             itemEntity.setUnitPrice(item.unitPrice());

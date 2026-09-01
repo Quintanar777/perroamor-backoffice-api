@@ -33,6 +33,7 @@ public class SaleWebMapper {
                 request.discountAmount(),
                 request.taxAmount(),
                 request.isPaid() == null || request.isPaid(),
+                Boolean.TRUE.equals(request.isWholesale()),
                 request.items().stream()
                         .map(i -> new CreateSaleCommand.NewItem(
                                 i.productId(), i.variantId(), i.comboId(), i.quantity(),
@@ -57,6 +58,7 @@ public class SaleWebMapper {
                 sale.totalAmount(),
                 sale.subtotal(),
                 sale.isPaid(),
+                sale.isWholesale(),
                 sale.isCancelled(),
                 sale.cancelledAt(),
                 sale.createdAt(),
@@ -72,6 +74,8 @@ public class SaleWebMapper {
                 item.variantName(),
                 item.comboId(),
                 item.comboName(),
+                item.discountId(),
+                item.discountName(),
                 item.quantity(),
                 item.unitPrice(),
                 item.personalization(),

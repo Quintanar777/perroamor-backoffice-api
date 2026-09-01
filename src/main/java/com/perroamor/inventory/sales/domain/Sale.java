@@ -19,6 +19,7 @@ public record Sale(
         BigDecimal taxAmount,
         BigDecimal totalAmount,
         boolean isPaid,
+        boolean isWholesale,
         boolean isCancelled,
         LocalDateTime cancelledAt,
         LocalDateTime createdAt,
