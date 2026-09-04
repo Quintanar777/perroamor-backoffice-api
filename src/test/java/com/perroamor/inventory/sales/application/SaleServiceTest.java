@@ -26,9 +26,11 @@ import com.perroamor.inventory.events.domain.EventFilter;
 import com.perroamor.inventory.events.domain.EventRepository;
 import com.perroamor.inventory.sales.domain.CreateSaleCommand;
 import com.perroamor.inventory.sales.domain.PaymentMethod;
+import com.perroamor.inventory.sales.domain.QuoteSaleCommand;
 import com.perroamor.inventory.sales.domain.Sale;
 import com.perroamor.inventory.sales.domain.SaleFilter;
 import com.perroamor.inventory.sales.domain.SaleItem;
+import com.perroamor.inventory.sales.domain.SaleQuote;
 import com.perroamor.inventory.sales.domain.SaleRepository;
 import com.perroamor.inventory.sales.domain.SaleStats;
 import com.perroamor.inventory.shared.error.ValidationException;
@@ -177,6 +179,92 @@ class SaleServiceTest {
         SaleItem item = sale.items().get(0);
         assertThat(item.unitPrice()).isEqualByComparingTo("100.00");
         assertThat(item.discountId()).isNull();
+    }
+
+    @Test
+    void quoteMatchesCreateSaleLineSplitAndLeavesStockUnchanged() {
+        // Same fixture as lineSplitAndSaleLevelDiscountStackOnTopOfAutoDiscountedPrice: FIXED slot
+        // on A (qty 1, price 80.00) + FIXED slot on B (qty 1, price 20.00). Cart: 3xA, 1xB -> B's
+        // scarcity caps applications at 1, so only 1 of A's 3 units gets discounted (k=1, n=3).
+        seedDiscount(10L, "Combo A+B", new BigDecimal("100.00"),
+                fixedSlot(0, PRODUCT_A, 1, "80.00"),
+                fixedSlot(1, PRODUCT_B, 1, "20.00"));
+
+        int stockABefore = productRepository.findById(PRODUCT_A).orElseThrow().stock();
+        int stockBBefore = productRepository.findById(PRODUCT_B).orElseThrow().stock();
+
+        QuoteSaleCommand command = new QuoteSaleCommand(
+                List.of(
+                        new CreateSaleCommand.NewItem(PRODUCT_A, null, null, 3, null, null),
+                        new CreateSaleCommand.NewItem(PRODUCT_B, null, null, 1, null, null)),
+                false);
+
+        SaleQuote quote = saleService.quoteSale(command);
+
+        List<SaleItem> productAItems = quote.items().stream().filter(i -> PRODUCT_A.equals(i.productId())).toList();
+        assertThat(productAItems).hasSize(2);
+
+        SaleItem discountedA = productAItems.stream().filter(i -> i.discountId() != null).findFirst().orElseThrow();
+        assertThat(discountedA.quantity()).isEqualTo(1);
+        assertThat(discountedA.unitPrice()).isEqualByComparingTo("80.00");
+        assertThat(discountedA.discountId()).isEqualTo(10L);
+        assertThat(discountedA.discountName()).isEqualTo("Combo A+B");
+
+        SaleItem fullPriceA = productAItems.stream().filter(i -> i.discountId() == null).findFirst().orElseThrow();
+        assertThat(fullPriceA.quantity()).isEqualTo(2);
+        assertThat(fullPriceA.unitPrice()).isEqualByComparingTo("100.00");
+
+        List<SaleItem> productBItems = quote.items().stream().filter(i -> PRODUCT_B.equals(i.productId())).toList();
+        assertThat(productBItems).hasSize(1);
+        assertThat(productBItems.get(0).quantity()).isEqualTo(1);
+        assertThat(productBItems.get(0).unitPrice()).isEqualByComparingTo("20.00");
+        assertThat(productBItems.get(0).discountId()).isEqualTo(10L);
+
+        assertThat(quote.discountId()).isEqualTo(10L);
+        assertThat(quote.discountName()).isEqualTo("Combo A+B");
+        // itemsTotal = (1*80 + 2*100) + (1*20) = 300.00 -- same split, no sale-level discountAmount
+        // to subtract since quoteSale has no such concept.
+        assertThat(quote.itemsTotal()).isEqualByComparingTo("300.00");
+
+        // Critical invariant: quoting must NOT touch stock.
+        assertThat(productRepository.findById(PRODUCT_A).orElseThrow().stock()).isEqualTo(stockABefore);
+        assertThat(productRepository.findById(PRODUCT_B).orElseThrow().stock()).isEqualTo(stockBBefore);
+    }
+
+    @Test
+    void quoteHonorsManualUnitPriceOverrideVerbatim() {
+        seedDiscount(20L, "Single A", new BigDecimal("80.00"),
+                fixedSlot(0, PRODUCT_A, 1, "80.00"));
+
+        QuoteSaleCommand command = new QuoteSaleCommand(
+                List.of(new CreateSaleCommand.NewItem(PRODUCT_A, null, null, 1, new BigDecimal("999.00"), null)),
+                false);
+
+        SaleQuote quote = saleService.quoteSale(command);
+
+        assertThat(quote.items()).hasSize(1);
+        SaleItem item = quote.items().get(0);
+        assertThat(item.unitPrice()).isEqualByComparingTo("999.00");
+        assertThat(item.discountId()).isEqualTo(20L);
+        assertThat(item.discountName()).isEqualTo("Single A");
+    }
+
+    @Test
+    void quoteWithWholesaleSkipsDiscountDetectionEntirely() {
+        seedDiscount(30L, "Single A", new BigDecimal("80.00"),
+                fixedSlot(0, PRODUCT_A, 1, "80.00"));
+
+        QuoteSaleCommand command = new QuoteSaleCommand(
+                List.of(new CreateSaleCommand.NewItem(PRODUCT_A, null, null, 1, null, null)),
+                true);
+
+        SaleQuote quote = saleService.quoteSale(command);
+
+        assertThat(quote.items()).hasSize(1);
+        SaleItem item = quote.items().get(0);
+        assertThat(item.unitPrice()).isEqualByComparingTo("100.00");
+        assertThat(item.discountId()).isNull();
+        assertThat(quote.discountId()).isNull();
     }
 
     @Test

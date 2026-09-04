@@ -2,8 +2,10 @@ package com.perroamor.inventory.sales.infrastructure.web;
 
 import com.perroamor.inventory.auth.domain.UserRepository;
 import com.perroamor.inventory.sales.domain.CreateSaleCommand;
+import com.perroamor.inventory.sales.domain.QuoteSaleCommand;
 import com.perroamor.inventory.sales.domain.Sale;
 import com.perroamor.inventory.sales.domain.SaleItem;
+import com.perroamor.inventory.sales.domain.SaleQuote;
 import com.perroamor.inventory.sales.domain.SaleStats;
 import com.perroamor.inventory.shared.error.ValidationException;
 import org.springframework.security.core.Authentication;
@@ -78,6 +80,40 @@ public class SaleWebMapper {
                 item.discountName(),
                 item.quantity(),
                 item.unitPrice(),
+                item.personalization(),
+                item.lineTotal());
+    }
+
+    /**
+     * A diferencia de {@link #toCommand}, no requiere Authentication: la cotización no crea nada
+     * ni se atribuye a un usuario.
+     */
+    public QuoteSaleCommand toQuoteCommand(QuoteSaleRequest request) {
+        return new QuoteSaleCommand(
+                request.items().stream()
+                        .map(i -> new CreateSaleCommand.NewItem(
+                                i.productId(), null, null, i.quantity(),
+                                i.unitPrice(), i.personalization()))
+                        .toList(),
+                Boolean.TRUE.equals(request.isWholesale()));
+    }
+
+    public SaleQuoteResponse toQuoteResponse(SaleQuote quote) {
+        return new SaleQuoteResponse(
+                quote.itemsTotal(),
+                quote.discountId(),
+                quote.discountName(),
+                quote.items().stream().map(this::toQuoteItemResponse).toList());
+    }
+
+    private SaleQuoteResponse.Item toQuoteItemResponse(SaleItem item) {
+        return new SaleQuoteResponse.Item(
+                item.productId(),
+                item.productName(),
+                item.quantity(),
+                item.unitPrice(),
+                item.discountId(),
+                item.discountName(),
                 item.personalization(),
                 item.lineTotal());
     }

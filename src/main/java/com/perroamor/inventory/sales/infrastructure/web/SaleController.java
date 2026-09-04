@@ -43,6 +43,18 @@ public class SaleController {
         return mapper.toResponse(created);
     }
 
+    /**
+     * Cotización de venta sin efectos secundarios: no crea la venta, no decrementa stock, no
+     * persiste nada. Devuelve 200 (nada fue creado). Reutiliza el mismo pricing/discount-matching
+     * que {@code create} para que la vista previa del carrito coincida exactamente con lo que
+     * produciría una venta real.
+     */
+    @PostMapping("/quote")
+    @ResponseStatus(HttpStatus.OK)
+    public SaleQuoteResponse quote(@Valid @RequestBody QuoteSaleRequest request) {
+        return mapper.toQuoteResponse(saleService.quoteSale(mapper.toQuoteCommand(request)));
+    }
+
     @GetMapping
     public PagedResponse<SaleResponse> search(
             @RequestParam(required = false) Long eventId,

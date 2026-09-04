@@ -13,9 +13,11 @@ import com.perroamor.inventory.events.application.EventService;
 import com.perroamor.inventory.events.domain.Event;
 import com.perroamor.inventory.events.domain.EventStatus;
 import com.perroamor.inventory.sales.domain.CreateSaleCommand;
+import com.perroamor.inventory.sales.domain.QuoteSaleCommand;
 import com.perroamor.inventory.sales.domain.Sale;
 import com.perroamor.inventory.sales.domain.SaleFilter;
 import com.perroamor.inventory.sales.domain.SaleItem;
+import com.perroamor.inventory.sales.domain.SaleQuote;
 import com.perroamor.inventory.sales.domain.SaleRepository;
 import com.perroamor.inventory.sales.domain.SaleStats;
 import com.perroamor.inventory.shared.error.BusinessRuleException;
@@ -92,28 +94,7 @@ public class SaleService {
 
         // Resolver cada item: solo producto suelto. comboId/variantId ya fueron rechazados en
         // validateCommand -- inventory-2-0 retira los write-paths de combo/variante de venta.
-        List<ResolvedItem> resolvedItems = new ArrayList<>();
-        for (CreateSaleCommand.NewItem item : command.items()) {
-            Product product = productService.getById(item.productId());
-            if (!product.isActive()) {
-                throw new BusinessRuleException("El producto '" + product.name() + "' está inactivo.");
-            }
-            resolvedItems.add(new ResolvedItem(item, product));
-        }
-
-        // Detección de descuento automático: opera sobre la disponibilidad total del carrito
-        // (agrupada por producto), antes de decrementar stock. Se salta por completo en ventas
-        // de mayoreo -- ninguna línea se inspecciona ni repricea.
-        Map<Long, Integer> availableByProduct = new HashMap<>();
-        for (ResolvedItem ri : resolvedItems) {
-            availableByProduct.merge(ri.product().id(), ri.item().quantity(), Integer::sum);
-        }
-
-        Optional<DiscountMatcher.MatchResult> matchResult = Optional.empty();
-        if (!command.isWholesale()) {
-            List<Discount> activeDiscounts = discountService.findActive();
-            matchResult = DiscountMatcher.match(availableByProduct, activeDiscounts);
-        }
+        List<ResolvedItem> resolvedItems = resolveItems(command.items());
 
         // Acumular stock a descontar por producto -- un solo decrement por producto,
         // independiente del split de líneas por descuento.
@@ -125,52 +106,11 @@ public class SaleService {
                 .sorted(Comparator.comparing(Map.Entry::getKey))
                 .forEach(e -> productService.decrementStock(e.getKey(), e.getValue()));
 
-        // Construir sale_items snapshot. Cuando el descuento consume k de las n unidades de un
-        // item, se emiten dos filas: k @ precio final (con discount_id, trazabilidad) y n-k @
-        // precio original. unitPriceOverride, si viene, reemplaza el precio de AMBAS filas pero
-        // NO borra el discount_id de la fila que sí fue repriceada -- ver spec "Manual Line Edit
-        // Overrides Discount Price".
-        Long discountId = matchResult.map(DiscountMatcher.MatchResult::discountId).orElse(null);
-        String discountName = matchResult.map(DiscountMatcher.MatchResult::discountName).orElse(null);
-        Map<Long, Integer> remainingConsumed = new HashMap<>();
-        Map<Long, BigDecimal> discountPriceByProduct = new HashMap<>();
-        matchResult.ifPresent(m -> m.consumedByProduct().forEach((productId, consumed) -> {
-            remainingConsumed.put(productId, consumed.quantity());
-            discountPriceByProduct.put(productId, consumed.finalUnitPrice());
-        }));
-
-        BigDecimal itemsTotal = BigDecimal.ZERO;
-        List<SaleItem> snapshotItems = new ArrayList<>();
-        for (ResolvedItem ri : resolvedItems) {
-            Option<BigDecimal> override = Option.of(ri.item().unitPriceOverride());
-            int n = ri.item().quantity();
-            int available = remainingConsumed.getOrDefault(ri.product().id(), 0);
-            int k = Math.min(available, n);
-
-            if (k > 0) {
-                BigDecimal discountedPrice = override.getOrElse(discountPriceByProduct.get(ri.product().id()));
-                BigDecimal lineTotal = discountedPrice.multiply(BigDecimal.valueOf(k));
-                itemsTotal = itemsTotal.add(lineTotal);
-                snapshotItems.add(new SaleItem(
-                        null, null, ri.product().id(), ri.product().name(), null, null, null, null,
-                        discountId, discountName, k, discountedPrice, ri.item().personalization(), lineTotal));
-                remainingConsumed.put(ri.product().id(), available - k);
-            }
-
-            int remainder = n - k;
-            if (remainder > 0) {
-                BigDecimal unitPrice = override.getOrElse(ri.product().price());
-                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(remainder));
-                itemsTotal = itemsTotal.add(lineTotal);
-                snapshotItems.add(new SaleItem(
-                        null, null, ri.product().id(), ri.product().name(), null, null, null, null,
-                        null, null, remainder, unitPrice, ri.item().personalization(), lineTotal));
-            }
-        }
+        PricingResult pricing = priceItems(resolvedItems, command.isWholesale());
 
         BigDecimal discount = Option.of(command.discountAmount()).getOrElse(BigDecimal.ZERO);
         BigDecimal tax      = Option.of(command.taxAmount()).getOrElse(BigDecimal.ZERO);
-        BigDecimal total    = itemsTotal.subtract(discount).add(tax);
+        BigDecimal total    = pricing.itemsTotal().subtract(discount).add(tax);
         if (total.signum() < 0) {
             throw new BusinessRuleException("El total de la venta no puede ser negativo.");
         }
@@ -194,9 +134,27 @@ public class SaleService {
                 false,
                 null,
                 null,
-                snapshotItems);
+                pricing.snapshotItems());
 
         return saleRepository.save(toSave);
+    }
+
+    /**
+     * Cotiza un carrito hipotético sin efectos secundarios: no crea Sale, no decrementa stock, no
+     * persiste nada. Reutiliza la misma resolución de items y el mismo pricing/discount-matching
+     * que {@link #createSale(CreateSaleCommand)} para garantizar que la vista previa coincida
+     * exactamente con lo que produciría una venta real del mismo carrito.
+     */
+    public SaleQuote quoteSale(QuoteSaleCommand command) {
+        if (command.items() == null || command.items().isEmpty()) {
+            throw new ValidationException("La cotización debe tener al menos un ítem.");
+        }
+        validateItems(command.items());
+
+        List<ResolvedItem> resolvedItems = resolveItems(command.items());
+        PricingResult pricing = priceItems(resolvedItems, command.isWholesale());
+
+        return new SaleQuote(pricing.snapshotItems(), pricing.itemsTotal(), pricing.discountId(), pricing.discountName());
     }
 
     /**
@@ -241,7 +199,22 @@ public class SaleService {
         if (command.paymentMethod() == null) {
             throw new ValidationException("El método de pago es obligatorio.");
         }
-        for (CreateSaleCommand.NewItem item : command.items()) {
+        validateItems(command.items());
+        if (command.discountAmount() != null && command.discountAmount().signum() < 0) {
+            throw new ValidationException("El descuento no puede ser negativo.");
+        }
+        if (command.taxAmount() != null && command.taxAmount().signum() < 0) {
+            throw new ValidationException("Los impuestos no pueden ser negativos.");
+        }
+    }
+
+    /**
+     * Validación de forma de items, compartida por createSale y quoteSale: inventory-2-0 retira
+     * combos/variantes como write-path de venta, así que ambos rechazan comboId/variantId por
+     * igual.
+     */
+    private void validateItems(List<CreateSaleCommand.NewItem> items) {
+        for (CreateSaleCommand.NewItem item : items) {
             // inventory-2-0: combos y variantes ya no se venden directamente. Los combos
             // existentes quedan de solo lectura (historial); las variantes se reemplazan por
             // productos independientes uno-por-talla.
@@ -260,14 +233,92 @@ public class SaleService {
                 throw new ValidationException("La cantidad de cada ítem debe ser mayor a cero.");
             }
         }
-        if (command.discountAmount() != null && command.discountAmount().signum() < 0) {
-            throw new ValidationException("El descuento no puede ser negativo.");
+    }
+
+    /**
+     * Resuelve cada item de comando contra el catálogo (solo producto suelto) y valida que esté
+     * activo. Compartido por createSale y quoteSale.
+     */
+    private List<ResolvedItem> resolveItems(List<CreateSaleCommand.NewItem> items) {
+        List<ResolvedItem> resolvedItems = new ArrayList<>();
+        for (CreateSaleCommand.NewItem item : items) {
+            Product product = productService.getById(item.productId());
+            if (!product.isActive()) {
+                throw new BusinessRuleException("El producto '" + product.name() + "' está inactivo.");
+            }
+            resolvedItems.add(new ResolvedItem(item, product));
         }
-        if (command.taxAmount() != null && command.taxAmount().signum() < 0) {
-            throw new ValidationException("Los impuestos no pueden ser negativos.");
+        return resolvedItems;
+    }
+
+    /**
+     * Pricing/discount-matching puro: detección de descuento automático (salteada por completo en
+     * ventas de mayoreo) y split de cada línea en k @ precio final descontado / (n-k) @ precio
+     * original. unitPriceOverride, si viene, reemplaza el precio de AMBAS filas pero NO borra el
+     * discount_id de la fila que sí fue repriceada -- ver spec "Manual Line Edit Overrides
+     * Discount Price". No tiene efectos secundarios (no toca stock ni persistencia); tanto
+     * createSale como quoteSale la invocan con el mismo carrito resuelto para garantizar el mismo
+     * resultado.
+     */
+    private PricingResult priceItems(List<ResolvedItem> resolvedItems, boolean isWholesale) {
+        // Detección de descuento automático: opera sobre la disponibilidad total del carrito
+        // (agrupada por producto). Se salta por completo en ventas de mayoreo -- ninguna línea se
+        // inspecciona ni repricea.
+        Map<Long, Integer> availableByProduct = new HashMap<>();
+        for (ResolvedItem ri : resolvedItems) {
+            availableByProduct.merge(ri.product().id(), ri.item().quantity(), Integer::sum);
         }
+
+        Optional<DiscountMatcher.MatchResult> matchResult = Optional.empty();
+        if (!isWholesale) {
+            List<Discount> activeDiscounts = discountService.findActive();
+            matchResult = DiscountMatcher.match(availableByProduct, activeDiscounts);
+        }
+
+        Long discountId = matchResult.map(DiscountMatcher.MatchResult::discountId).orElse(null);
+        String discountName = matchResult.map(DiscountMatcher.MatchResult::discountName).orElse(null);
+        Map<Long, Integer> remainingConsumed = new HashMap<>();
+        Map<Long, BigDecimal> discountPriceByProduct = new HashMap<>();
+        matchResult.ifPresent(m -> m.consumedByProduct().forEach((productId, consumed) -> {
+            remainingConsumed.put(productId, consumed.quantity());
+            discountPriceByProduct.put(productId, consumed.finalUnitPrice());
+        }));
+
+        BigDecimal itemsTotal = BigDecimal.ZERO;
+        List<SaleItem> snapshotItems = new ArrayList<>();
+        for (ResolvedItem ri : resolvedItems) {
+            Option<BigDecimal> override = Option.of(ri.item().unitPriceOverride());
+            int n = ri.item().quantity();
+            int available = remainingConsumed.getOrDefault(ri.product().id(), 0);
+            int k = Math.min(available, n);
+
+            if (k > 0) {
+                BigDecimal discountedPrice = override.getOrElse(discountPriceByProduct.get(ri.product().id()));
+                BigDecimal lineTotal = discountedPrice.multiply(BigDecimal.valueOf(k));
+                itemsTotal = itemsTotal.add(lineTotal);
+                snapshotItems.add(new SaleItem(
+                        null, null, ri.product().id(), ri.product().name(), null, null, null, null,
+                        discountId, discountName, k, discountedPrice, ri.item().personalization(), lineTotal));
+                remainingConsumed.put(ri.product().id(), available - k);
+            }
+
+            int remainder = n - k;
+            if (remainder > 0) {
+                BigDecimal unitPrice = override.getOrElse(ri.product().price());
+                BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(remainder));
+                itemsTotal = itemsTotal.add(lineTotal);
+                snapshotItems.add(new SaleItem(
+                        null, null, ri.product().id(), ri.product().name(), null, null, null, null,
+                        null, null, remainder, unitPrice, ri.item().personalization(), lineTotal));
+            }
+        }
+
+        return new PricingResult(snapshotItems, itemsTotal, discountId, discountName);
     }
 
     private record ResolvedItem(CreateSaleCommand.NewItem item, Product product) {
+    }
+
+    private record PricingResult(List<SaleItem> snapshotItems, BigDecimal itemsTotal, Long discountId, String discountName) {
     }
 }
