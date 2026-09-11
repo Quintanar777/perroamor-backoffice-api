@@ -308,7 +308,7 @@ class SaleServiceTest {
     }
 
     private static Product product(Long id, String name, BigDecimal price, int stock) {
-        return new Product(id, name, null, 1L, "Perro Amor", null, "Accesorios", price, price, stock,
+        return new Product(id, name, null, null, 1L, "Perro Amor", null, "Accesorios", price, price, stock,
                 null, false, false, true, null, null);
     }
 

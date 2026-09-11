@@ -29,6 +29,9 @@ public class ProductJpaEntity {
     @Column(nullable = false, length = 150)
     private String name;
 
+    @Column(length = 40)
+    private String size;
+
     @Column(length = 60)
     private String code;
 
@@ -73,6 +76,9 @@ public class ProductJpaEntity {
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
+
+    public String getSize() { return size; }
+    public void setSize(String size) { this.size = size; }
 
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }

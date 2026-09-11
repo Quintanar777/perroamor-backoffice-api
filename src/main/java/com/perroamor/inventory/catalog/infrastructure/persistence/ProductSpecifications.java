@@ -22,6 +22,9 @@ public final class ProductSpecifications {
             if (filter.category() != null && !filter.category().isBlank()) {
                 predicates.add(cb.equal(cb.lower(root.get("category")), filter.category().toLowerCase()));
             }
+            if (filter.size() != null && !filter.size().isBlank()) {
+                predicates.add(cb.equal(cb.lower(root.get("size")), filter.size().toLowerCase()));
+            }
             if (filter.query() != null && !filter.query().isBlank()) {
                 predicates.add(cb.like(cb.lower(root.get("name")),
                         "%" + filter.query().toLowerCase() + "%"));
