@@ -10,7 +10,9 @@ import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
@@ -41,6 +43,7 @@ public class ProductService {
         Product toSave = new Product(
                 null,
                 product.name(),
+                product.size(),
                 product.code(),
                 product.brandId(),
                 null,
@@ -57,7 +60,7 @@ public class ProductService {
                 null);
         Product saved = productRepository.save(toSave);
         if (saved.code() == null) {
-            saved = productRepository.update(saved.withCode(generateCode(saved.id())));
+            saved = productRepository.update(saved.withCode(generateCode(saved)));
         }
         return saved;
     }
@@ -71,6 +74,7 @@ public class ProductService {
         Product updated = new Product(
                 existing.id(),
                 product.name(),
+                product.size(),
                 product.code(),
                 product.brandId(),
                 null,
@@ -124,12 +128,22 @@ public class ProductService {
 
     public List<Product> backfillMissingCodes() {
         return productRepository.findAllWithoutCode().stream()
-                .map(product -> productRepository.update(product.withCode(generateCode(product.id()))))
+                .map(product -> productRepository.update(product.withCode(generateCode(product))))
                 .toList();
     }
 
+    // Si el producto todavía no tiene código, "regenerar" es en realidad la
+    // primera generación: se usa el esquema determinístico (5 letras + talla)
+    // para que quede legible desde el arranque, igual que create()/
+    // backfillMissingCodes(). Si ya tenía un código y se pide reemplazarlo (ej.
+    // etiqueta dañada o código comprometido), se usa uno aleatorio -- un código
+    // determinístico volvería a dar el mismo resultado (o un sufijo -2, -3...
+    // creciendo en cada click) porque nombre/talla no cambiaron.
     public Product regenerateCode(Long id) {
         Product product = getById(id);
+        if (product.code() == null) {
+            return productRepository.update(product.withCode(generateCode(product)));
+        }
         String code = generateRandomCode();
         int attempts = 0;
         while (productRepository.existsByCode(code) && attempts < 5) {
@@ -139,8 +153,39 @@ public class ProductService {
         return productRepository.update(product.withCode(code));
     }
 
-    private String generateCode(Long id) {
-        return "P" + "%06d".formatted(id);
+    private static final int NAME_PREFIX_LENGTH = 5;
+
+    // Código = primeras 5 letras del nombre (sin espacios ni acentos) + "-" +
+    // TALLA, en mayúsculas (ej. "Collar Milagro" + "S" -> "COLLA-S"). Corto a
+    // propósito -- es solo el punto de partida, se puede editar a mano desde
+    // el formulario de producto. Si el resultado ya existe (mismo prefijo+
+    // talla en dos productos), se agrega un sufijo numérico hasta encontrar
+    // uno libre.
+    private String generateCode(Product product) {
+        String letters = normalizeCodeSegment(product.name()).replace("-", "");
+        String base = letters.length() > NAME_PREFIX_LENGTH ? letters.substring(0, NAME_PREFIX_LENGTH) : letters;
+        String sizePart = normalizeCodeSegment(product.size());
+        if (!sizePart.isBlank()) {
+            base = base + "-" + sizePart;
+        }
+        String candidate = base;
+        int suffix = 2;
+        while (productRepository.existsByCode(candidate)) {
+            candidate = base + "-" + suffix;
+            suffix++;
+        }
+        return candidate;
+    }
+
+    private String normalizeCodeSegment(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String withoutAccents = Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return withoutAccents.toUpperCase(Locale.ROOT)
+                .replaceAll("[^A-Z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
     }
 
     // Sin 0/O ni 1/I/L — se evitan caracteres ambiguos porque el código

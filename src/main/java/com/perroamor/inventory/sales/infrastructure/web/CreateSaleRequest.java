@@ -22,6 +22,7 @@ public record CreateSaleRequest(
         @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal discountAmount,
         @DecimalMin("0.00") @Digits(integer = 8, fraction = 2) BigDecimal taxAmount,
         Boolean isPaid,
+        Boolean isWholesale,
         @NotEmpty @Valid List<Item> items
 ) {
 

@@ -25,6 +25,7 @@ public interface ProductJpaRepository extends
 
     Optional<ProductJpaEntity> findByCode(String code);
 
+    @Query("SELECT p FROM ProductJpaEntity p WHERE p.code IS NULL AND p.isActive = true")
     List<ProductJpaEntity> findAllByCodeIsNull();
 
     boolean existsByCode(String code);

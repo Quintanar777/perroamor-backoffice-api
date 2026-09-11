@@ -94,6 +94,7 @@ public class ProductRepositoryAdapter implements ProductRepository {
             existing.setBrand(brandJpa.getReferenceById(product.brandId()));
         }
         existing.setName(product.name());
+        existing.setSize(product.size());
         existing.setCode(product.code());
         existing.setCategory(product.category());
         existing.setPrice(product.price());

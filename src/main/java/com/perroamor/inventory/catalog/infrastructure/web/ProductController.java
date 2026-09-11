@@ -39,12 +39,13 @@ public class ProductController {
     public PagedResponse<ProductResponse> search(
             @RequestParam(required = false) Long brandId,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String productSize,
             @RequestParam(required = false) String q,
             @RequestParam(required = false) Boolean isActive,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
-        ProductFilter filter = new ProductFilter(brandId, category, q, isActive);
+        ProductFilter filter = new ProductFilter(brandId, category, productSize, q, isActive);
         Page<Product> result = productService.search(filter, PageRequest.of(page, size));
         return PagedResponse.map(result, mapper::toProductResponse);
     }

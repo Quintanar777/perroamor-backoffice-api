@@ -7,21 +7,21 @@ import com.perroamor.inventory.catalog.combos.domain.Combo;
 import com.perroamor.inventory.catalog.combos.domain.ComboFilter;
 import com.perroamor.inventory.catalog.combos.domain.ComboItem;
 import com.perroamor.inventory.catalog.combos.domain.ComboRepository;
-import com.perroamor.inventory.catalog.combos.domain.CreateComboCommand;
-import com.perroamor.inventory.catalog.combos.domain.UpdateComboCommand;
 import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductVariant;
 import com.perroamor.inventory.shared.error.NotFoundException;
-import com.perroamor.inventory.shared.error.ValidationException;
 import com.perroamor.inventory.shared.types.Page;
 import com.perroamor.inventory.shared.types.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
+/**
+ * inventory-2-0: combo write paths (create/update/delete) are retired. This
+ * service is now read-only + derived availableStock, kept for historical sale
+ * display and cancellation stock restitution (see combo-retirement spec).
+ * {@code brandService} is kept as a constructor dependency even though it is
+ * currently unused by the remaining methods, to avoid an unnecessary breaking
+ * change to Spring wiring / test fixtures for a component with no other callers.
+ */
 @Service
 public class ComboService {
 
@@ -49,58 +49,6 @@ public class ComboService {
                 .orElseThrow(() -> NotFoundException.of("Combo", id));
     }
 
-    public Combo create(CreateComboCommand command) {
-        validatePrices(command.price(), command.wholesalePrice());
-        validateItems(command.items());
-        brandService.getById(command.brandId());
-
-        List<ComboItem> items = resolveItems(command.items());
-
-        Combo toSave = new Combo(
-                null,
-                command.name(),
-                command.description(),
-                command.brandId(),
-                null,
-                null,
-                command.price(),
-                command.wholesalePrice(),
-                true,
-                null,
-                items);
-
-        return comboRepository.save(toSave);
-    }
-
-    public Combo update(Long id, UpdateComboCommand command) {
-        Combo existing = getById(id);
-        validatePrices(command.price(), command.wholesalePrice());
-        validateItems(command.items());
-        brandService.getById(command.brandId());
-
-        List<ComboItem> items = resolveItems(command.items());
-
-        Combo updated = new Combo(
-                existing.id(),
-                command.name(),
-                command.description(),
-                command.brandId(),
-                null,
-                null,
-                command.price(),
-                command.wholesalePrice(),
-                command.isActive(),
-                existing.createdAt(),
-                items);
-
-        return comboRepository.replace(updated);
-    }
-
-    public void delete(Long id) {
-        getById(id);
-        comboRepository.softDelete(id);
-    }
-
     /**
      * Stock disponible derivado: cuántas unidades del combo se pueden vender,
      * limitado por el componente con menor stock relativo a su qty requerida.
@@ -125,59 +73,5 @@ public class ComboService {
             }
         }
         return min == Integer.MAX_VALUE ? 0 : min;
-    }
-
-    private void validatePrices(java.math.BigDecimal price, java.math.BigDecimal wholesalePrice) {
-        if (price == null || price.signum() < 0) {
-            throw new ValidationException("El precio del combo no puede ser negativo.");
-        }
-        if (wholesalePrice == null || wholesalePrice.signum() < 0) {
-            throw new ValidationException("El precio de mayoreo del combo no puede ser negativo.");
-        }
-    }
-
-    private void validateItems(List<CreateComboCommand.NewItem> items) {
-        if (items == null || items.isEmpty()) {
-            throw new ValidationException("El combo debe tener al menos un componente.");
-        }
-        Set<String> seen = new HashSet<>();
-        for (CreateComboCommand.NewItem item : items) {
-            if (item.productId() == null) {
-                throw new ValidationException("Cada componente del combo debe tener productId.");
-            }
-            if (item.quantity() <= 0) {
-                throw new ValidationException("La cantidad de cada componente debe ser mayor a cero.");
-            }
-            String key = item.productId() + ":" + (item.variantId() == null ? "-" : item.variantId());
-            if (!seen.add(key)) {
-                throw new ValidationException(
-                        "El combo tiene componentes duplicados (productId " + item.productId() +
-                        (item.variantId() == null ? "" : ", variantId " + item.variantId()) + ").");
-            }
-        }
-    }
-
-    private List<ComboItem> resolveItems(List<CreateComboCommand.NewItem> rawItems) {
-        List<ComboItem> resolved = new ArrayList<>(rawItems.size());
-        for (CreateComboCommand.NewItem item : rawItems) {
-            Product product = productService.getById(item.productId());
-            String variantName = null;
-            if (item.variantId() != null) {
-                ProductVariant variant = variantService.getById(item.variantId());
-                if (!variant.productId().equals(item.productId())) {
-                    throw new ValidationException(
-                            "La variante " + item.variantId() + " no pertenece al producto " + item.productId() + ".");
-                }
-                variantName = variant.variantName();
-            }
-            resolved.add(new ComboItem(
-                    null,
-                    item.productId(),
-                    product.name(),
-                    item.variantId(),
-                    variantName,
-                    item.quantity()));
-        }
-        return resolved;
     }
 }

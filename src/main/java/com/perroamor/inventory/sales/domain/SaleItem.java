@@ -11,6 +11,8 @@ public record SaleItem(
         String variantName,
         Long comboId,
         String comboName,
+        Long discountId,
+        String discountName,
         int quantity,
         BigDecimal unitPrice,
         String personalization,

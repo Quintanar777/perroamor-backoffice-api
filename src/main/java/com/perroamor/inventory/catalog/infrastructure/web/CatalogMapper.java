@@ -5,8 +5,6 @@ import com.perroamor.inventory.catalog.domain.Product;
 import com.perroamor.inventory.catalog.domain.ProductVariant;
 import org.mapstruct.Mapper;
 
-import java.math.BigDecimal;
-
 @Mapper(componentModel = "spring")
 public interface CatalogMapper {
 
@@ -20,6 +18,7 @@ public interface CatalogMapper {
         return new Product(
                 null,
                 request.name(),
+                request.size(),
                 request.code(),
                 request.brandId(),
                 null,
@@ -33,22 +32,6 @@ public interface CatalogMapper {
                 Boolean.TRUE.equals(request.hasVariants()),
                 request.isActive() == null || request.isActive(),
                 null,
-                null);
-    }
-
-    default ProductVariant toDomain(ProductVariantRequest request) {
-        return new ProductVariant(
-                null,
-                null,
-                request.variantName(),
-                request.color(),
-                request.size(),
-                request.design(),
-                request.material(),
-                request.sku(),
-                request.stock() == null ? 0 : request.stock(),
-                request.priceAdjustment() == null ? BigDecimal.ZERO : request.priceAdjustment(),
-                request.isActive() == null || request.isActive(),
                 null);
     }
 }

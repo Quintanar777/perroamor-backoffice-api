@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 
 public record ProductRequest(
         @NotBlank @Size(min = 2, max = 150) String name,
+        @Size(max = 40) String size,
         @Size(max = 60) String code,
         @NotNull Long brandId,
         @NotBlank @Size(min = 2, max = 80) String category,
