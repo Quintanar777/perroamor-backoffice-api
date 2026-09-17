@@ -5,13 +5,25 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Pure, Spring-free sale-time discount matcher. Given a cart (available quantity
- * per product id) and the list of active discounts, finds the first discount
- * (in list order) whose slots can be fully satisfied at least once, and reports
- * how many times it can be applied plus the total quantity/price consumed per
- * product.
+ * per product id) and the list of active discounts, finds the discount whose
+ * required products are an EXACT match for the distinct products in the cart --
+ * not a partial/subset match -- and reports how many times it can be applied
+ * plus the total quantity/price consumed per product. The business guarantees
+ * discount configs are unique per exact product set, so at most one discount is
+ * expected to match a given cart; list order is only a tie-break for the
+ * (otherwise not expected) case of two discounts requiring the identical set.
+ *
+ * "Exact" is about which DISTINCT products are present, not their quantity: a
+ * cart can still have more units of an already-required product than one
+ * application needs (see buildResult) -- that's still an exact match, just
+ * applied N times with any leftover units of that product priced normally.
+ * What disqualifies a discount is the cart containing a product the discount
+ * doesn't require at all.
  *
  * Search: bounded backtracking over each slot's options (depth = slot count,
  * branch = option count per slot). Required for group slots: greedy first-fit
@@ -67,6 +79,17 @@ public final class DiscountMatcher {
             DiscountSlotOption option = chosen[i];
             requiredPerApplication.merge(option.productId(), slots.get(i).quantity(), Integer::sum);
             priceByProduct.put(option.productId(), option.finalUnitPrice());
+        }
+
+        // Exact match: the cart's distinct products must be precisely the ones this
+        // discount requires -- a product in the cart that this discount doesn't
+        // touch at all disqualifies it, even if every slot could otherwise be filled.
+        Set<Long> cartProducts = availableByProduct.entrySet().stream()
+                .filter(entry -> entry.getValue() > 0)
+                .map(Map.Entry::getKey)
+                .collect(Collectors.toSet());
+        if (!cartProducts.equals(requiredPerApplication.keySet())) {
+            return Optional.empty();
         }
 
         int applications = Integer.MAX_VALUE;

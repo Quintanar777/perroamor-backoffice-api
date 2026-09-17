@@ -12,7 +12,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Pure unit tests for {@link DiscountMatcher} — no Spring context.
  * Scenarios mirror product-discounts spec.md: one combination, two combinations,
- * incomplete cart, overlapping discounts (first wins), group-slot backtracking.
+ * incomplete cart, exact-cart-vs-discount matching (no partial-subset wins),
+ * identical-requirement tie-break, group-slot backtracking.
  */
 class DiscountMatcherTest {
 
@@ -76,7 +77,10 @@ class DiscountMatcherTest {
     }
 
     @Test
-    void overlappingEligibilityAppliesOnlyFirstDiscount() {
+    void identicalRequirementsTieBreakToFirstInListOrder() {
+        // Both discounts require exactly the same cart (A:1) -- a config the business
+        // guarantees won't happen for distinct carts, but if it ever does, list order
+        // is the tie-break.
         Discount first = discount(10L, "First", fixedSlot(0, PRODUCT_A, 1, "20.00"));
         Discount second = discount(20L, "Second", fixedSlot(0, PRODUCT_A, 1, "22.00"));
 
@@ -86,6 +90,68 @@ class DiscountMatcherTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().discountId()).isEqualTo(10L);
+    }
+
+    @Test
+    void exactCartMatchPicksDiscountCoveringWholeCartOverSmallerOverlappingOne() {
+        // "b" needs A,B,C. "a" needs A,B,C,D. Cart has all four -- "b" is only a
+        // subset of the cart (extra product D is unaccounted for), so it must NOT
+        // match; "a" is the exact match for the whole cart and must be chosen, even
+        // though "b" is listed first (reproduces the reported bug: adding the 4th
+        // product must stop "b" from winning).
+        Discount smaller = discount(20L, "b",
+                fixedSlot(0, PRODUCT_A, 1, "10.00"),
+                fixedSlot(1, PRODUCT_B, 1, "10.00"),
+                fixedSlot(2, PRODUCT_C, 1, "10.00"));
+        Discount larger = discount(10L, "a",
+                fixedSlot(0, PRODUCT_A, 1, "8.00"),
+                fixedSlot(1, PRODUCT_B, 1, "8.00"),
+                fixedSlot(2, PRODUCT_C, 1, "8.00"),
+                fixedSlot(3, PRODUCT_D, 1, "8.00"));
+
+        Map<Long, Integer> cart = Map.of(PRODUCT_A, 1, PRODUCT_B, 1, PRODUCT_C, 1, PRODUCT_D, 1);
+
+        Optional<DiscountMatcher.MatchResult> result =
+                DiscountMatcher.match(cart, List.of(smaller, larger));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().discountId()).isEqualTo(10L);
+    }
+
+    @Test
+    void exactCartMatchStillPicksSmallerDiscountWhenCartMatchesItExactly() {
+        // Same two discounts as above, but the cart only has the 3 products "b"
+        // needs -- "a" can't match (missing D), so "b" must win.
+        Discount smaller = discount(20L, "b",
+                fixedSlot(0, PRODUCT_A, 1, "10.00"),
+                fixedSlot(1, PRODUCT_B, 1, "10.00"),
+                fixedSlot(2, PRODUCT_C, 1, "10.00"));
+        Discount larger = discount(10L, "a",
+                fixedSlot(0, PRODUCT_A, 1, "8.00"),
+                fixedSlot(1, PRODUCT_B, 1, "8.00"),
+                fixedSlot(2, PRODUCT_C, 1, "8.00"),
+                fixedSlot(3, PRODUCT_D, 1, "8.00"));
+
+        Map<Long, Integer> cart = Map.of(PRODUCT_A, 1, PRODUCT_B, 1, PRODUCT_C, 1);
+
+        Optional<DiscountMatcher.MatchResult> result =
+                DiscountMatcher.match(cart, List.of(smaller, larger));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().discountId()).isEqualTo(20L);
+    }
+
+    @Test
+    void discountIsIgnoredWhenCartHasAnUnrelatedExtraProduct() {
+        // Cart has an extra product that isn't part of the discount at all (not a
+        // surplus of an already-required product) -- must not match.
+        Discount discount = discount(10L, "Solo A", fixedSlot(0, PRODUCT_A, 1, "20.00"));
+
+        Map<Long, Integer> cart = Map.of(PRODUCT_A, 1, PRODUCT_B, 1);
+
+        Optional<DiscountMatcher.MatchResult> result = DiscountMatcher.match(cart, List.of(discount));
+
+        assertThat(result).isEmpty();
     }
 
     @Test
